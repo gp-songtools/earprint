@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Earprint Track Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single analysis console — file strip, readout row, full-width timeline, then a 3-up grid of meters and an AI review panel */
+:root{
+  --bg:#EDEFF4; --surface:#F9FAFC; --ink:#141A2C; --muted:#586179; --line:#D2D7E3;
+  --accent:#D83A72; --accent-2:#2A78A3; --low:#A6B4D0; --wave:#9AA6C2; --chip:#E4E8F1;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E1220; --surface:#161B2C; --ink:#E7EAF3; --muted:#959DB4; --line:#283049;
+  --accent:#FF6B9C; --accent-2:#5BB4E0; --low:#3E4C6E; --wave:#4A5678; --chip:#21283D; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0E1220; --surface:#161B2C; --ink:#E7EAF3; --muted:#959DB4; --line:#283049;
+  --accent:#FF6B9C; --accent-2:#5BB4E0; --low:#3E4C6E; --wave:#4A5678; --chip:#21283D; color-scheme:dark }
+
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0}
+img{max-width:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--f-display);text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,4.2vw,40px);font-weight:700;letter-spacing:-.02em;line-height:1.05}
+h2{font-size:17px;font-weight:700;letter-spacing:-.005em}
+.label{font-family:var(--f-mono);font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+p{margin:0}
+button,.btn{font:inherit;font-weight:600;font-size:14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+button:hover,.btn:hover{border-color:var(--muted)}
+button:focus-visible,.btn:focus-within,textarea:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{filter:brightness(1.07)}
+button:disabled{opacity:.5;cursor:default;filter:none}
+
+/* Header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.top .sub{color:var(--muted);max-width:56ch;margin-top:6px}
+.brand-mark{display:inline-block;width:.62em;height:.62em;border-radius:50%;background:conic-gradient(var(--accent) 0 30%, var(--accent-2) 30% 62%, var(--low) 62%);margin-right:.18em;vertical-align:.04em}
+
+/* Drop strip */
+.drop{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;padding:16px 18px;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface);transition:border-color .15s, background .15s}
+.drop.over{border-color:var(--accent);background:var(--chip)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.track{flex:1 1 260px;min-width:0}
+.track .name{font-weight:600;font-size:16px;overflow-wrap:anywhere}
+.track .meta{color:var(--muted);font-size:13px}
+.badge{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;background:var(--chip);color:var(--muted);margin-left:8px;vertical-align:2px;white-space:nowrap}
+.status{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);min-height:1.2em}
+.status.err{color:var(--accent)}
+.bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
+
+/* Readouts */
+.readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ro{background:var(--surface);padding:14px 16px 15px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ro .v{font-family:var(--f-display);font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.ro .v.word{font-size:24px;line-height:1.5;overflow-wrap:anywhere}
+.ro .v small{font-family:var(--f-mono);font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:4px}
+.ro .s{font-size:12.5px;color:var(--muted)}
+.camelot{font-family:var(--f-mono);font-size:12px;font-weight:500;color:var(--accent-2);border:1px solid currentColor;border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:6px;letter-spacing:0}
+
+/* Panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px}
+.grid3{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:20px}
+@media (max-width:900px){.grid3{grid-template-columns:1fr 1fr}.grid3 .traits{grid-column:1/-1}}
+@media (max-width:620px){.grid3{grid-template-columns:1fr}}
+
+/* Timeline */
+.tl-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#playBtn{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%}
+#playBtn svg{width:16px;height:16px;fill:currentColor}
+#timeNow{font-size:13px;color:var(--muted)}
+.canvas-box{position:relative;width:100%}
+#wave{display:block;width:100%;height:150px;cursor:pointer;touch-action:manipulation}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+/* Traits */
+.trait{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:baseline}
+.trait .n{font-size:13.5px;font-weight:500}
+.trait .val{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+.meter{grid-column:1/-1;height:8px;border-radius:4px;background:var(--chip);position:relative;overflow:hidden}
+.meter>i{position:absolute;inset:0 auto 0 0;background:var(--accent-2);border-radius:4px;transition:width .5s ease}
+.traits-list{display:flex;flex-direction:column;gap:11px}
+
+/* Mood */
+#moodSvg{width:100%;max-width:300px;aspect-ratio:1;align-self:center;display:block}
+.mood-word{font-family:var(--f-display);font-size:22px;font-weight:700;letter-spacing:-.01em}
+
+/* Chroma */
+.chroma{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;align-items:end;height:150px}
+.chroma .col{display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end;min-width:0}
+.chroma .b{width:100%;border-radius:3px 3px 1px 1px;background:var(--low);transition:height .5s ease}
+.chroma .col.inkey .b{background:var(--accent-2)}
+.chroma .col.tonic .b{background:var(--accent)}
+.chroma .pc{font-family:var(--f-mono);font-size:10.5px;color:var(--muted)}
+.chroma .col.tonic .pc{color:var(--accent);font-weight:600}
+
+/* AI review */
+.ai-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:20px}
+@media (max-width:760px){.ai-grid{grid-template-columns:1fr}}
+textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.ai-side{display:flex;flex-direction:column;gap:10px}
+.ai-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ai-out{display:flex;flex-direction:column;gap:14px;min-width:0}
+.ai-out .summary{font-size:15.5px;line-height:1.6;max-width:68ch}
+.ai-empty{color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:10px;padding:18px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--chip);border-radius:999px;padding:3px 11px;font-size:13px}
+.genre{display:grid;grid-template-columns:minmax(0,9rem) 1fr auto;gap:10px;align-items:center;font-size:13.5px}
+.genre .meter{grid-column:auto}
+.genre .meter>i{background:var(--accent)}
+.kv{display:flex;flex-direction:column;gap:6px}
+.ident{font-size:13px;color:var(--accent-2);font-weight:600}
+.note{font-size:12.5px;color:var(--muted);max-width:80ch}
+/* Streaming link lookup */
+.link-form{gap:10px}
+.link-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}
+@media (max-width:700px){.link-row{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field input{width:100%;font:inherit;font-size:14px;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.field input:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+#linkMsg{font-size:13px;color:var(--muted);min-height:1.2em}
+#linkMsg.err{color:var(--accent)}
+.link-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+.link-body a{color:var(--accent-2);font-weight:500}
+.match{font-size:13px;color:var(--muted)}
+.match.ok{color:var(--accent-2);font-weight:600}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+.adv summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.adv[open]{display:flex;flex-direction:column;gap:6px}
+.ai-side a,.note a{color:var(--accent-2)}
+footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><span class="brand-mark" aria-hidden="true"></span>Earprint</h1>
+      <p class="sub">Drop in a song to measure its tempo, key, loudness, energy and mood, then have Gemini listen and write a genre, mood and lyric profile.</p>
+    </div>
+  </header>
+
+  <label class="drop" id="drop" for="fileIn">
+    <input type="file" id="fileIn" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.aac">
+    <span class="btn" role="button">Choose audio file</span>
+    <div class="track">
+      <div class="name" id="trackName">Loading demo…</div>
+      <div class="meta" id="trackMeta">or drag an MP3, WAV, FLAC, OGG or M4A onto this strip</div>
+      <div class="status" id="status"></div>
+      <div class="bar" id="progWrap" hidden><i id="prog"></i></div>
+    </div>
+  </label>
+
+  <form class="panel link-form" id="linkForm" novalidate>
+    <div class="panel-head"><h2>Or analyze a streaming track</h2><span class="label">YouTube Music · Spotify · via Gemini</span></div>
+    <div class="field"><label class="label" for="linkIn">Track link (optional)</label>
+      <input id="linkIn" type="text" inputmode="url" autocomplete="off" placeholder="https://open.spotify.com/track/…  or  https://music.youtube.com/watch?v=…"></div>
+    <div class="link-row">
+      <div class="field"><label class="label" for="artistIn">Artist</label><input id="artistIn" type="text" autocomplete="off" placeholder="Daft Punk"></div>
+      <div class="field"><label class="label" for="titleIn">Title</label><input id="titleIn" type="text" autocomplete="off" placeholder="Get Lucky"></div>
+      <button class="primary" id="linkBtn" type="submit">Analyze track</button>
+    </div>
+    <div id="linkMsg" role="status"></div>
+    <p class="note" id="linkNote">With a YouTube Music link, Gemini listens to the track itself, so artist and title are optional. Spotify links can't be listened to, so type the artist and title and Gemini describes the song from what it knows. Earprint never downloads audio from either service.</p>
+  </form>
+
+  <section class="readouts" aria-label="Key measurements">
+    <div class="ro"><span class="label">Tempo</span><span class="v" id="roBpm">–</span><span class="s" id="roBpmS">&nbsp;</span></div>
+    <div class="ro"><span class="label">Key</span><span class="v" id="roKey">–</span><span class="s" id="roKeyS">&nbsp;</span></div>
+    <div class="ro"><span class="label">Average level</span><span class="v" id="roLvl">–</span><span class="s" id="roLvlS">&nbsp;</span></div>
+    <div class="ro"><span class="label">Loudness range</span><span class="v" id="roLra">–</span><span class="s" id="roLraS">&nbsp;</span></div>
+    <div class="ro"><span class="label">Length</span><span class="v" id="roDur">–</span><span class="s" id="roDurS">&nbsp;</span></div>
+  </section>
+
+  <section class="panel" id="linkPanel" hidden>
+    <div class="panel-head"><h2>Streaming track</h2><span class="label">From Gemini</span></div>
+    <div class="link-body" id="linkBody"></div>
+    <p class="note">The waveform, pitch profile and character scores need the audio file itself, so they are hidden for streaming tracks.</p>
+  </section>
+
+  <section class="panel" id="timelinePanel">
+    <div class="panel-head">
+      <h2>Timeline</h2>
+      <div class="legend"><span><i style="background:var(--low)"></i>Quiet</span><span><i style="background:var(--accent-2)"></i>Building</span><span><i style="background:var(--accent)"></i>Peak</span></div>
+    </div>
+    <div class="tl-controls">
+      <button id="playBtn" aria-label="Play"><svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2.5v11l9-5.5z"/></svg></button>
+      <span class="mono" id="timeNow">0:00 / 0:00</span>
+      <span class="note">Click the waveform to jump. The band underneath marks energy sections.</span>
+    </div>
+    <div class="canvas-box"><canvas id="wave" aria-label="Waveform with energy sections"></canvas></div>
+    <audio id="audio" preload="auto"></audio>
+  </section>
+
+  <div class="grid3" id="localGrid">
+    <section class="panel traits">
+      <div class="panel-head"><h2>Character</h2><span class="label">0–100</span></div>
+      <div class="traits-list" id="traits"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Mood</h2><span class="label">Valence × arousal</span></div>
+      <div class="mood-word" id="moodWord">–</div>
+      <svg id="moodSvg" viewBox="0 0 220 220" role="img" aria-label="Mood plane"></svg>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Pitch profile</h2><span class="label">Chroma</span></div>
+      <div class="chroma" id="chroma"></div>
+      <p class="note" id="chromaNote">Bars show how much each pitch class sounds across the track. Blue bars are in the detected scale; the pink bar is the tonic.</p>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>AI review</h2><span class="label">Genre · mood · instruments · lyrics</span></div>
+    <div class="ai-grid">
+      <div class="ai-side">
+        <div class="field"><label class="label" for="keyIn">Your Gemini API key</label>
+          <input id="keyIn" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key (starts with AIza…)"></div>
+        <label class="check"><input type="checkbox" id="rememberChk"> Remember the key in this browser</label>
+        <p class="note">Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. The key goes straight from your browser to Google and is never sent anywhere else.</p>
+        <details class="adv"><summary>Model</summary>
+          <div class="field"><label class="label" for="modelIn">Gemini model ID</label><input id="modelIn" type="text" autocomplete="off" spellcheck="false"></div>
+          <p class="note">Use any Gemini model that accepts audio. Check Google's pricing page for which ones are on the free tier.</p>
+        </details>
+        <label class="check"><input type="checkbox" id="listenChk" checked> Let Gemini listen to the audio file</label>
+        <label for="lyrics" class="label">Lyrics (optional)</label>
+        <textarea id="lyrics" placeholder="Paste the song's lyrics to get a theme and meaning analysis too."></textarea>
+        <div class="ai-actions">
+          <button class="primary" id="aiBtn" disabled>Write AI review</button>
+          <button id="aiStop" hidden>Stop</button>
+        </div>
+        <p class="note" id="aiNote">Paste your Gemini API key above to turn on AI reviews.</p>
+      </div>
+      <div class="ai-out" id="aiOut">
+        <div class="ai-empty" id="aiEmpty">Run an analysis, then press <b>Write AI review</b> for a written profile with genre weights, moods, likely instruments and listening contexts.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Measurements happen in your browser. Audio is sent only when you ask for an AI review with listening turned on, and then it goes from your browser directly to Google's Gemini API under your own key. Tempo comes from autocorrelating the onset envelope, key from correlating the average chroma vector with Krumhansl–Kessler profiles, and level is unweighted RMS (not LUFS). Character scores and mood are heuristics built from those measurements, so treat them as estimates. Tempo can land on half or double time for some tracks.
+  </footer>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const MAJ_NAMES = ['C','D♭','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+const MIN_NAMES = ['C','C♯','D','E♭','E','F','F♯','G','G♯','A','B♭','B'];
+const PC_LABEL  = ['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+const KK_MAJ = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+const KK_MIN = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+const fmtTime = s => { s = Math.max(0, s|0); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); };
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+let state = { buf:null, mono:null, sr:0, feats:null, name:'', env:null, isDemo:false };
+let busy = false;
+
+/* ---------- FFT ---------- */
+function makeFFT(n){
+  const lv = Math.log2(n), rev = new Uint32Array(n);
+  for (let i=0;i<n;i++){ let r=0,x=i; for(let j=0;j<lv;j++){ r=(r<<1)|(x&1); x>>=1; } rev[i]=r; }
+  const cs = new Float64Array(n/2), sn = new Float64Array(n/2);
+  for (let i=0;i<n/2;i++){ cs[i]=Math.cos(2*Math.PI*i/n); sn[i]=Math.sin(2*Math.PI*i/n); }
+  return (re, im) => {
+    for (let i=0;i<n;i++){ const j=rev[i]; if (j>i){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; } }
+    for (let size=2; size<=n; size<<=1){
+      const half=size>>1, step=n/size;
+      for (let i=0;i<n;i+=size){
+        for (let j=0,k=0;j<half;j++,k+=step){
+          const a=i+j, b=a+half;
+          const tr = re[b]*cs[k] + im[b]*sn[k], ti = -re[b]*sn[k] + im[b]*cs[k];
+          re[b]=re[a]-tr; im[b]=im[a]-ti; re[a]+=tr; im[a]+=ti;
+        }
+      }
+    }
+  };
+}
+
+function pearson(a, b){
+  let ma=0, mb=0; for (let i=0;i<12;i++){ ma+=a[i]; mb+=b[i]; } ma/=12; mb/=12;
+  let num=0, da=0, db=0;
+  for (let i=0;i<12;i++){ const x=a[i]-ma, y=b[i]-mb; num+=x*y; da+=x*x; db+=y*y; }
+  return num / (Math.sqrt(da*db) || 1);
+}
+function camelot(pc, minor){
+  const k = (pc*7) % 12;            // steps round the circle of fifths from C
+  const rel = minor ? ((pc+3)%12) : pc;
+  const kk = (rel*7) % 12;
+  return (((8 + kk - 1) % 12) + 1) + (minor ? 'A' : 'B');
+}
+const pct = (arr, p) => { const s = Float64Array.from(arr).sort(); return s.length ? s[Math.min(s.length-1, Math.floor(p*(s.length-1)))] : 0; };
+
+/* ---------- Analysis ---------- */
+async function analyze(mono, sr, onProg){
+  const N=4096, H=512, fps=sr/H, half=N/2, binHz=sr/N;
+  const nF = Math.max(1, Math.floor((mono.length-N)/H)+1);
+  const fft = makeFFT(N), win = new Float64Array(N);
+  for (let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));
+  const pcOf = new Int8Array(half).fill(-1), band = new Uint8Array(half);
+  for (let k=1;k<half;k++){
+    const f=k*binHz;
+    if (f>=80 && f<=5000) pcOf[k] = ((Math.round(69+12*Math.log2(f/440)) % 12) + 12) % 12;
+    band[k] = f<150 ? 0 : f<2500 ? 1 : 2;
+  }
+  const fluxTop = Math.min(half, Math.floor(8000/binHz));
+  const flatLo = Math.ceil(100/binHz), flatHi = Math.min(half, Math.floor(8000/binHz));
+  const re=new Float64Array(N), im=new Float64Array(N), prevLog=new Float64Array(half), curLog=new Float64Array(half);
+  const rms=new Float32Array(nF), flux=new Float32Array(nF), cent=new Float32Array(nF), flat=new Float32Array(nF);
+  const chroma=new Float64Array(12), fc=new Float64Array(12), bands=[0,0,0];
+
+  for (let t=0;t<nF;t++){
+    const off=t*H; let ss=0;
+    for (let i=0;i<N;i++){ const x = mono[off+i] || 0; ss+=x*x; re[i]=x*win[i]; im[i]=0; }
+    rms[t]=Math.sqrt(ss/N);
+    fft(re, im);
+    let sM=0, sFM=0, fl=0, sLog=0, sP=0, cnt=0; fc.fill(0);
+    for (let k=1;k<half;k++){
+      const p = re[k]*re[k]+im[k]*im[k], m = Math.sqrt(p);
+      sM+=m; sFM+=m*k*binHz;
+      const lg = Math.log(1+m); curLog[k]=lg;
+      if (k<fluxTop){ const d=lg-prevLog[k]; if (d>0) fl+=d; }
+      if (pcOf[k]>=0) fc[pcOf[k]] += m;
+      if (k>=flatLo && k<flatHi){ sLog+=Math.log(p+1e-12); sP+=p; cnt++; }
+      bands[band[k]] += p;
+    }
+    prevLog.set(curLog);
+    flux[t]=t?fl:0; cent[t]=sM? sFM/sM : 0;
+    flat[t]= sP>1e-9 ? Math.exp(sLog/cnt)/(sP/cnt) : 0;
+    let fs=0; for (let i=0;i<12;i++) fs+=fc[i];
+    if (fs>0) for (let i=0;i<12;i++) chroma[i]+= (fc[i]/fs)*rms[t];
+    if (t % 400 === 0){ onProg(t/nF); await new Promise(r=>setTimeout(r,0)); }
+  }
+  onProg(1);
+
+  // Onset envelope: flux minus local mean, rectified
+  const o = new Float32Array(nF);
+  { const w=8; let acc=0; const q=[];
+    for (let t=0;t<nF;t++){
+      let s=0,c=0; for (let j=Math.max(0,t-w); j<=Math.min(nF-1,t+w); j++){ s+=flux[j]; c++; }
+      o[t]=Math.max(0, flux[t]-s/c);
+    } }
+  // Tempo by autocorrelation with a log-Gaussian prior centred on 120 BPM
+  const lagMin=Math.floor(fps*60/200), lagMax=Math.ceil(fps*60/55), LMAX=Math.min(nF-2, lagMax*2+2);
+  const r=new Float64Array(LMAX+1);
+  for (let L=0;L<=LMAX;L++){ let s=0; for (let t=0;t+L<nF;t++) s+=o[t]*o[t+L]; r[L]=s/(nF-L); }
+  const score = L => r[L] + (2*L<=LMAX ? 0.5*r[2*L] : 0);
+  const prior = L => { const b=60*fps/L; return Math.exp(-0.5*Math.pow(Math.log2(b/120)/0.85,2)); };
+  let bestL=lagMin, bestS=-1;
+  for (let L=lagMin; L<=Math.min(lagMax, LMAX-1); L++){ const s=score(L)*prior(L); if (s>bestS){ bestS=s; bestL=L; } }
+  let Lf=bestL;
+  if (bestL>lagMin && bestL<LMAX-1){
+    const a=score(bestL-1), b=score(bestL), c=score(bestL+1), d=a-2*b+c;
+    if (d<0) Lf = bestL + 0.5*(a-c)/d;
+  }
+  const bpm = 60*fps/Lf;
+  const pulse = r[0]>0 ? clamp01(r[bestL]/r[0]) : 0;
+
+  // Onset rate
+  let om=0; for (let t=0;t<nF;t++) om+=o[t]; om/=nF;
+  let ov=0; for (let t=0;t<nF;t++) ov+=(o[t]-om)**2; const osd=Math.sqrt(ov/nF);
+  let onsets=0, last=-99;
+  for (let t=1;t<nF-1;t++) if (o[t]>om+osd && o[t]>=o[t-1] && o[t]>=o[t+1] && t-last>=4){ onsets++; last=t; }
+  const dur = mono.length/sr, onsetRate = onsets/dur;
+
+  // Key
+  const cMax = Math.max(...chroma) || 1, chromaN = Array.from(chroma, v=>v/cMax);
+  const keys=[];
+  for (let pc=0;pc<12;pc++){
+    const maj=[], min=[]; for (let i=0;i<12;i++){ maj.push(KK_MAJ[(i-pc+12)%12]); min.push(KK_MIN[(i-pc+12)%12]); }
+    keys.push({pc, minor:false, r:pearson(chromaN, maj)}, {pc, minor:true, r:pearson(chromaN, min)});
+  }
+  keys.sort((a,b)=>b.r-a.r);
+  const bestMaj = keys.find(k=>!k.minor).r, bestMin = keys.find(k=>k.minor).r;
+
+  // Loudness
+  let tot=0; for (let i=0;i<mono.length;i++) tot+=mono[i]*mono[i];
+  const rmsDb = 10*Math.log10(tot/mono.length + 1e-12);
+  const st=[]; const w3=Math.round(3*sr), h1=Math.round(sr);
+  for (let s=0; s+w3<=mono.length; s+=h1){ let a=0; for (let i=s;i<s+w3;i+=2) a+=mono[i]*mono[i]; const db=10*Math.log10(a/(w3/2)+1e-12); if (db>-70) st.push(db); }
+  const lra = st.length>2 ? pct(st,.95)-pct(st,.10) : 0;
+
+  // Energy sections (2 s windows, relative to loudest)
+  const W=Math.max(1, Math.round(fps*2)), win2=[];
+  for (let s=0;s<nF;s+=W){ let a=0,c=0; for (let t=s;t<Math.min(nF,s+W);t++){ a+=rms[t]*rms[t]; c++; } win2.push(10*Math.log10(a/c+1e-12)); }
+  const sm = win2.map((v,i)=>{ const a=[win2[i-1]??v, v, win2[i+1]??v].sort((x,y)=>x-y); return a[1]; });
+  const top = pct(sm,.95);
+  let lv = sm.map(v => v > top-3.5 ? 2 : v > top-9 ? 1 : 0);
+  let segs=[];
+  lv.forEach((l,i)=>{ const s=i*W/fps, e=Math.min(dur,(i+1)*W/fps); if (segs.length && segs[segs.length-1].level===l) segs[segs.length-1].end=e; else segs.push({start:s,end:e,level:l}); });
+  for (let pass=0; pass<3; pass++){
+    const out=[]; for (const sg of segs){
+      if (out.length && (sg.end-sg.start<7.9)) { out[out.length-1].end=sg.end; continue; }
+      if (out.length && out[out.length-1].level===sg.level){ out[out.length-1].end=sg.end; continue; }
+      out.push({...sg});
+    }
+    if (out.length>1 && out[0].end-out[0].start<7.9){ out[1].start=0; out.shift(); }
+    segs=out;
+  }
+
+  // Means
+  let cS=0,wS=0,fS=0; for (let t=0;t<nF;t++){ cS+=cent[t]*rms[t]; fS+=flat[t]*rms[t]; wS+=rms[t]; }
+  const centroid = wS? cS/wS : 0, flatMean = wS? fS/wS : 0;
+  const bT = bands[0]+bands[1]+bands[2] || 1;
+  const lowRatio=bands[0]/bT, highRatio=bands[2]/bT;
+
+  // Heuristic traits
+  const loudN = clamp01((rmsDb+30)/24), onsetN=clamp01(onsetRate/6);
+  const energy = 100*clamp01(0.55*loudN + 0.25*onsetN + 0.2*clamp01(highRatio/0.12));
+  const tempoFit = 0.45 + 0.55*Math.exp(-0.5*((bpm-118)/30)**2);
+  const dance = 100*clamp01(pulse/0.4)*tempoFit;
+  const bright = 100*clamp01((centroid-700)/2600);
+  const dyn = 100*clamp01((lra-2)/14);
+  const acoustic = 100*clamp01(1 - (0.45*clamp01(flatMean/0.25) + 0.3*loudN + 0.25*clamp01(lowRatio/0.45)));
+  const bass = 100*clamp01(lowRatio/0.55);
+  const tempoN = clamp01((bpm-70)/100);
+  const modeScore = clamp01(0.5 + (bestMaj-bestMin)*1.6);
+  const arousal = clamp01(0.65*energy/100 + 0.35*tempoN);
+  const valence = clamp01(0.45*modeScore + 0.3*bright/100 + 0.25*dance/100);
+
+  return { dur, bpm, pulse, onsetRate, keys:keys.slice(0,3), chroma:chromaN, rmsDb, lra, segs,
+    centroid, flatMean, lowRatio, highRatio,
+    traits:{energy, dance, bright, dyn, acoustic, bass}, arousal, valence, modeScore };
+}
+
+/* ---------- Waveform ---------- */
+const canvas=$('wave'), cx=canvas.getContext('2d'), audio=$('audio');
+function buildEnv(mono){
+  const B=3000, env=new Float32Array(B), per=mono.length/B;
+  for (let b=0;b<B;b++){ let m=0; const s=Math.floor(b*per), e=Math.floor((b+1)*per); for (let i=s;i<e;i+=2){ const v=Math.abs(mono[i]); if (v>m) m=v; } env[b]=m; }
+  let mx=0; for (const v of env) if (v>mx) mx=v; if (mx>0) for (let i=0;i<B;i++) env[i]/=mx;
+  return env;
+}
+function draw(){
+  const dpr=window.devicePixelRatio||1, Wc=canvas.clientWidth, Hc=canvas.clientHeight;
+  if (canvas.width!==Math.round(Wc*dpr) || canvas.height!==Math.round(Hc*dpr)){ canvas.width=Math.round(Wc*dpr); canvas.height=Math.round(Hc*dpr); }
+  cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,Wc,Hc);
+  const env=state.env, f=state.feats; if (!env || !f) return;
+  const bandH=10, axisH=16, waveH=Hc-bandH-axisH-6, mid=waveH/2;
+  const dur=f.dur, ph = audio.duration ? audio.currentTime/dur : 0;
+  const cWave=tok('--wave'), cPlay=tok('--accent'), cols=[tok('--low'), tok('--accent-2'), tok('--accent')];
+  const step=2;
+  for (let x=0;x<Wc;x+=step){
+    const b0=Math.floor(x/Wc*env.length), b1=Math.max(b0+1, Math.floor((x+step)/Wc*env.length));
+    let m=0; for (let b=b0;b<b1 && b<env.length;b++) if (env[b]>m) m=env[b];
+    const h=Math.max(1, m*(waveH/2-2));
+    cx.fillStyle = (x/Wc) < ph ? cPlay : cWave;
+    cx.fillRect(x, mid-h, step-0.6, h*2);
+  }
+  const by=waveH+4;
+  for (const s of f.segs){ cx.fillStyle=cols[s.level]; const x0=s.start/dur*Wc, x1=s.end/dur*Wc; cx.fillRect(x0+0.5, by, Math.max(1,x1-x0-1), bandH); }
+  if (ph>0){ cx.fillStyle=tok('--ink'); cx.fillRect(ph*Wc-1, 0, 2, waveH); }
+  cx.fillStyle=tok('--muted'); cx.font='10.5px "IBM Plex Mono", ui-monospace, monospace'; cx.textBaseline='top';
+  const tickEvery = dur>420?60 : dur>150?30 : dur>40?10 : 5;
+  for (let t=0;t<=dur;t+=tickEvery){ const x=t/dur*Wc; const lab=fmtTime(t); const tw=cx.measureText(lab).width; cx.fillText(lab, Math.min(Wc-tw, Math.max(0, x-(t?tw/2:0))), by+bandH+4); }
+}
+new ResizeObserver(draw).observe(canvas);
+const redrawTheme = () => { draw(); renderMood(); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', redrawTheme);
+new MutationObserver(redrawTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+canvas.addEventListener('click', e => {
+  if (!state.feats || !audio.src) return;
+  const r=canvas.getBoundingClientRect(); const t=(e.clientX-r.left)/r.width*state.feats.dur;
+  try { audio.currentTime = t; } catch(_){}
+  draw(); updTime();
+});
+const updTime = () => { $('timeNow').textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(state.feats?.dur||0); };
+let raf=0;
+function loop(){ draw(); updTime(); if (!audio.paused) raf=requestAnimationFrame(loop); }
+const PLAY='<path d="M4 2.5v11l9-5.5z"/>', PAUSE='<path d="M3.5 2.5h3v11h-3zM9.5 2.5h3v11h-3z"/>';
+$('playBtn').onclick = () => { if (!audio.src) return; audio.paused ? audio.play().catch(()=>{}) : audio.pause(); };
+audio.addEventListener('play', ()=>{ $('playIcon').innerHTML=PAUSE; $('playBtn').setAttribute('aria-label','Pause'); cancelAnimationFrame(raf); loop(); });
+audio.addEventListener('pause', ()=>{ $('playIcon').innerHTML=PLAY; $('playBtn').setAttribute('aria-label','Play'); draw(); });
+audio.addEventListener('ended', ()=>{ draw(); });
+
+/* ---------- Rendering ---------- */
+function keyName(k){ return (k.minor ? MIN_NAMES[k.pc] : MAJ_NAMES[k.pc]) + (k.minor ? ' minor' : ' major'); }
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const RO_LABELS = ['Tempo','Key','Average level','Loudness range','Length'];
+function setRO(i, label, html, sub){
+  const ro=document.querySelectorAll('.ro')[i];
+  ro.querySelector('.label').textContent=label; ro.querySelector('.v').innerHTML=html; ro.querySelector('.v').classList.toggle('word', !/\d/.test(html) && html!=='–' && html!=='…'); ro.querySelector('.s').textContent=sub||' ';
+}
+function render(){
+  const f=state.feats;
+  document.querySelectorAll('.ro .v').forEach(v=>v.classList.remove('word'));
+  document.querySelectorAll('.ro .label').forEach((l,i)=>l.textContent=RO_LABELS[i]);
+  const bpmR = Math.round(f.bpm*10)/10;
+  $('roBpm').innerHTML = (Math.abs(bpmR-Math.round(bpmR))<0.15 ? Math.round(bpmR) : bpmR.toFixed(1)) + '<small>BPM</small>';
+  $('roBpmS').textContent = `Pulse ${f.pulse>0.3?'strong':f.pulse>0.15?'moderate':'loose'} · half ${Math.round(f.bpm/2)} / double ${Math.round(f.bpm*2)}`;
+  const k=f.keys[0], k2=f.keys[1];
+  const conf = clamp01((k.r-k2.r)/0.15*0.5 + (k.r-0.4)/0.5*0.5);
+  $('roKey').innerHTML = `${k.minor?MIN_NAMES[k.pc]:MAJ_NAMES[k.pc]}<small>${k.minor?'min':'maj'}</small><span class="camelot">${camelot(k.pc,k.minor)}</span>`;
+  $('roKeyS').textContent = `${conf>0.6?'High':conf>0.3?'Medium':'Low'} confidence · next: ${keyName(k2)}`;
+  $('roLvl').innerHTML = f.rmsDb.toFixed(1) + '<small>dBFS</small>';
+  $('roLvlS').textContent = `Peak ${state.peakDb.toFixed(1)} dBFS · crest ${(state.peakDb-f.rmsDb).toFixed(1)} dB`;
+  $('roLra').innerHTML = f.lra.toFixed(1) + '<small>dB</small>';
+  $('roLraS').textContent = f.lra<4 ? 'Heavily compressed, steady' : f.lra<8 ? 'Typical modern mix' : f.lra<13 ? 'Dynamic' : 'Very dynamic';
+  $('roDur').innerHTML = fmtTime(f.dur);
+  $('roDurS').textContent = `${f.segs.length} energy section${f.segs.length===1?'':'s'} · ${f.onsetRate.toFixed(1)} onsets/s`;
+
+  const T=f.traits, rows=[
+    ['Energy', T.energy, T.energy>70?'driving':T.energy>40?'moderate':'gentle'],
+    ['Danceability', T.dance, T.dance>65?'locked groove':T.dance>40?'some groove':'free-time'],
+    ['Brightness', T.bright, Math.round(f.centroid)+' Hz centroid'],
+    ['Bass weight', T.bass, Math.round(f.lowRatio*100)+'% below 150 Hz'],
+    ['Dynamics', T.dyn, f.lra.toFixed(1)+' dB range'],
+    ['Acoustic feel', T.acoustic, 'estimate'],
+  ];
+  $('traits').innerHTML = rows.map(([n,v,d])=>`<div class="trait"><span class="n">${n}</span><span class="val">${Math.round(v)} · ${d}</span><div class="meter"><i style="width:${v.toFixed(1)}%"></i></div></div>`).join('');
+
+  const inScale = k.minor ? [0,2,3,5,7,8,10] : [0,2,4,5,7,9,11];
+  $('chroma').innerHTML = f.chroma.map((v,i)=>{
+    const rel=(i-k.pc+12)%12, cls = rel===0?'tonic':inScale.includes(rel)?'inkey':'';
+    return `<div class="col ${cls}" title="${PC_LABEL[i]}: ${Math.round(v*100)}%"><div class="b" style="height:${Math.max(3,v*118)}px"></div><span class="pc">${PC_LABEL[i]}</span></div>`;
+  }).join('');
+  renderMood();
+  draw(); updTime();
+}
+function moodLabel(v,a){
+  if (a>=0.5) return v>=0.5 ? (a>0.72?'Euphoric':'Upbeat') : (a>0.72?'Aggressive':'Tense');
+  return v>=0.5 ? (a<0.28?'Serene':'Warm') : (a<0.28?'Somber':'Melancholic');
+}
+function renderMood(){
+  const f=state.feats, svg=$('moodSvg'); if (!f) return;
+  const P=24, S=220-2*P, x=P+f.valence*S, y=P+(1-f.arousal)*S;
+  $('moodWord').textContent = moodLabel(f.valence, f.arousal);
+  const q=(tx,ty,t,anchor)=>`<text x="${tx}" y="${ty}" font-size="10" text-anchor="${anchor}" fill="var(--muted)" font-family="IBM Plex Mono, ui-monospace, monospace">${t}</text>`;
+  svg.innerHTML = `
+    <rect x="${P}" y="${P}" width="${S}" height="${S}" rx="8" fill="var(--bg)" stroke="var(--line)"/>
+    <line x1="${P+S/2}" y1="${P}" x2="${P+S/2}" y2="${P+S}" stroke="var(--line)"/>
+    <line x1="${P}" y1="${P+S/2}" x2="${P+S}" y2="${P+S/2}" stroke="var(--line)"/>
+    ${q(P+6,P+14,'TENSE','start')}${q(P+S-6,P+14,'UPBEAT','end')}
+    ${q(P+6,P+S-7,'SOMBER','start')}${q(P+S-6,P+S-7,'CALM','end')}
+    ${q(110,15,'more energy','middle')}${q(110,214,'less energy','middle')}
+    <text x="10" y="110" font-size="10" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, ui-monospace, monospace" transform="rotate(-90 10 110)">darker</text>
+    <text x="210" y="110" font-size="10" text-anchor="middle" fill="var(--muted)" font-family="IBM Plex Mono, ui-monospace, monospace" transform="rotate(90 210 110)">brighter</text>
+    <circle cx="${x}" cy="${y}" r="16" fill="var(--accent)" opacity=".16"/>
+    <circle cx="${x}" cy="${y}" r="6.5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+}
+
+/* ---------- Pipeline ---------- */
+function setStatus(t, err){ const s=$('status'); s.textContent=t; s.classList.toggle('err', !!err); }
+async function run(buf, name, meta, isDemo){
+  busy=true; $('aiBtn').disabled=true;
+  const sr0=buf.sampleRate, chs=buf.numberOfChannels, maxLen=Math.min(buf.length, sr0*720);
+  let peak=0; const data=[]; for (let c=0;c<chs;c++){ const d=buf.getChannelData(c); data.push(d); for (let i=0;i<maxLen;i++){ const v=d[i]<0?-d[i]:d[i]; if (v>peak) peak=v; } }
+  const fac = sr0>=32000 ? 2 : 1, sr=sr0/fac, n=Math.floor(maxLen/fac), mono=new Float32Array(n);
+  for (let i=0;i<n;i++){ let s=0; for (let c=0;c<chs;c++) for (let j=0;j<fac;j++) s+=data[c][i*fac+j]; mono[i]=s/(chs*fac); }
+  $('progWrap').hidden=false; setStatus('Analyzing…');
+  const feats = await analyze(mono, sr, p=>{ $('prog').style.width=(p*100).toFixed(1)+'%'; });
+  $('progWrap').hidden=true;
+  state = { source:'file', buf, mono, sr, feats, name, env:buildEnv(mono), isDemo, peakDb:20*Math.log10(peak+1e-12) };
+  $('timelinePanel').hidden=false; $('localGrid').hidden=false; $('linkPanel').hidden=true;
+  $('trackName').innerHTML=''; $('trackName').append(name); if (isDemo){ const b=document.createElement('span'); b.className='badge'; b.textContent='Example'; $('trackName').append(b); }
+  $('trackMeta').textContent = meta + (buf.length>maxLen ? ' · first 12 minutes analyzed' : '');
+  setStatus(isDemo ? 'This is a synthesized example loop. Choose your own file to analyze it.' : 'Analysis complete.');
+  render(); resetAI();
+  busy=false; refreshKeyState();
+}
+
+async function loadFile(file){
+  if (!file || busy) return;
+  if (!/^audio\//.test(file.type) && !/\.(mp3|wav|flac|ogg|oga|m4a|aac|aiff?|opus|webm)$/i.test(file.name)){ setStatus('That file is not audio. Choose an MP3, WAV, FLAC, OGG or M4A file.', true); return; }
+  audio.pause(); busy=true; setStatus('Decoding ' + file.name + '…');
+  try {
+    const ab = await file.arrayBuffer();
+    const ctx = new OfflineAudioContext(2, 1, 44100);
+    const buf = await ctx.decodeAudioData(ab);
+    if (audio.src.startsWith('blob:')) URL.revokeObjectURL(audio.src);
+    audio.src = URL.createObjectURL(file);
+    busy=false;
+    const meta = `${(file.size/1048576).toFixed(1)} MB · ${buf.numberOfChannels===1?'mono':'stereo'} · ${file.name.split('.').pop().toUpperCase()}`;
+    await run(buf, file.name.replace(/\.[^.]+$/, ''), meta, false);
+  } catch(e){
+    busy=false; console.error(e);
+    setStatus('This browser could not decode that file. Try converting it to MP3 or WAV.', true);
+  }
+}
+$('fileIn').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value=''; });
+const drop=$('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+
+/* ---------- Demo track (synthesized, A minor, 124 BPM) ---------- */
+function wavBlob(buf){
+  const ch=buf.getChannelData(0), n=ch.length, sr=buf.sampleRate, ab=new ArrayBuffer(44+n*2), v=new DataView(ab);
+  const w=(o,s)=>{ for (let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
+  for (let i=0;i<n;i++){ const s=Math.max(-1,Math.min(1,ch[i])); v.setInt16(44+i*2, s*32767, true); }
+  return new Blob([ab], {type:'audio/wav'});
+}
+async function makeDemo(){
+  const sr=22050, bpm=124, beat=60/bpm, bars=16, dur=bars*4*beat;
+  const ctx=new OfflineAudioContext(1, Math.ceil(sr*(dur+0.6)), sr);
+  const master=ctx.createGain(); master.gain.value=0.55; master.connect(ctx.destination);
+  const noise=ctx.createBuffer(1, sr*0.4|0, sr); { const d=noise.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1; }
+  const mtof=m=>440*Math.pow(2,(m-69)/12);
+  const chords=[[57,60,64,69],[53,57,60,65],[48,52,55,60],[55,59,62,67]], roots=[45,41,48,43];
+  const lead=[76,74,72,71,72,74,76,79];
+  const env=(g,t,a,peak,d)=>{ g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(peak,t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+a+d); };
+  for (let bar=0; bar<bars; bar++){
+    const t0=bar*4*beat, ci=bar%4, full=bar>=4, top=bar>=12;
+    for (const m of chords[ci]){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='triangle'; o.frequency.value=mtof(m); o.connect(g).connect(master); env(g,t0,0.04,0.07,4*beat); o.start(t0); o.stop(t0+4*beat+0.05); }
+    for (let b=0;b<4;b++){
+      const tb=t0+b*beat;
+      const h=ctx.createBufferSource(), hf=ctx.createBiquadFilter(), hg=ctx.createGain(); h.buffer=noise; hf.type='highpass'; hf.frequency.value=7000; h.connect(hf).connect(hg).connect(master); env(hg,tb+beat/2,0.002,0.12,0.05); h.start(tb+beat/2); h.stop(tb+beat/2+0.1);
+      if (!full) continue;
+      const k=ctx.createOscillator(), kg=ctx.createGain(); k.frequency.setValueAtTime(150,tb); k.frequency.exponentialRampToValueAtTime(45,tb+0.12); k.connect(kg).connect(master); env(kg,tb,0.002,0.95,0.28); k.start(tb); k.stop(tb+0.32);
+      if (b%2===1){ const s=ctx.createBufferSource(), sf=ctx.createBiquadFilter(), sg=ctx.createGain(); s.buffer=noise; sf.type='bandpass'; sf.frequency.value=1800; sf.Q.value=0.7; s.connect(sf).connect(sg).connect(master); env(sg,tb,0.002,0.5,0.16); s.start(tb); s.stop(tb+0.2); }
+      for (let e=0;e<2;e++){ const te=tb+e*beat/2, o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain(); o.type='sawtooth'; o.frequency.value=mtof(roots[ci]); f.type='lowpass'; f.frequency.value=420; o.connect(f).connect(g).connect(master); env(g,te,0.005,0.22,0.2); o.start(te); o.stop(te+0.24); }
+    }
+    if (top) for (let e=0;e<8;e++){ const te=t0+e*beat/2, o=ctx.createOscillator(), g=ctx.createGain(); o.type='square'; o.frequency.value=mtof(lead[(e+ci*2)%8]); o.connect(g).connect(master); env(g,te,0.01,0.05,0.22); o.start(te); o.stop(te+0.26); }
+  }
+  return ctx.startRendering();
+}
+
+/* ---------- AI review: the viewer's own Gemini key, called straight from the browser ---------- */
+const DEFAULT_MODEL='gemini-3.5-flash', KEY_STORE='earprint.geminiKey', MODEL_STORE='earprint.geminiModel';
+let aiReady=false, aiCtl=null;
+const store = { get:k=>{ try { return localStorage.getItem(k); } catch(_) { return null; } },
+  set:(k,v)=>{ try { v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); } catch(_){} } };
+function aiPlaceholder(t){ $('aiOut').innerHTML=''; const d=document.createElement('div'); d.className='ai-empty'; d.textContent=t; $('aiOut').append(d); }
+function resetAI(){
+  aiCtl?.abort();
+  aiPlaceholder(aiReady ? 'Press Write AI review for a written profile with genre weights, moods, likely instruments and listening contexts.'
+    : 'Paste your Gemini API key on the left to turn on AI reviews. The measurements above work without it.');
+}
+function refreshKeyState(){
+  const was=aiReady;
+  aiReady = $('keyIn').value.trim().length >= 20;
+  $('aiBtn').disabled = !aiReady || busy || !(state.feats || state.linkReq);
+  $('aiNote').textContent = aiReady
+    ? 'With listening on, a compressed copy of the first 6 minutes of audio is sent to Gemini. With it off, only the measurements, file name and any lyrics are sent.'
+    : 'Paste your Gemini API key above to turn on AI reviews.';
+  if ($('rememberChk').checked) store.set(KEY_STORE, $('keyIn').value.trim() || null);
+  if (was!==aiReady && !aiCtl) resetAI();
+}
+function featsForPrompt(){
+  const f=state.feats, k=f.keys[0];
+  return {
+    duration_s: +f.dur.toFixed(1), tempo_bpm: +f.bpm.toFixed(1), pulse_clarity_0to1:+f.pulse.toFixed(2), onsets_per_s:+f.onsetRate.toFixed(2),
+    key: keyName(k), key_runner_up: keyName(f.keys[1]), key_correlation:+k.r.toFixed(2),
+    avg_level_dbfs:+f.rmsDb.toFixed(1), peak_dbfs:+state.peakDb.toFixed(1), loudness_range_db:+f.lra.toFixed(1),
+    spectral_centroid_hz: Math.round(f.centroid), bass_energy_share:+f.lowRatio.toFixed(2), treble_energy_share:+f.highRatio.toFixed(3), spectral_flatness:+f.flatMean.toFixed(3),
+    pitch_class_profile: Object.fromEntries(PC_LABEL.map((p,i)=>[p, +f.chroma[i].toFixed(2)])),
+    energy_sections: f.segs.map(s=>({from_s:Math.round(s.start), to_s:Math.round(s.end), level:['quiet','building','peak'][s.level]})),
+    heuristic_scores_0to100: Object.fromEntries(Object.entries(f.traits).map(([a,b])=>[a, Math.round(b)])),
+    mood_estimate: moodLabel(f.valence, f.arousal), valence_0to1:+f.valence.toFixed(2), arousal_0to1:+f.arousal.toFixed(2),
+  };
+}
+function chipList(title, items){
+  if (!Array.isArray(items) || !items.length) return null;
+  const box=document.createElement('div'); box.className='kv';
+  const l=document.createElement('span'); l.className='label'; l.textContent=title; box.append(l);
+  const c=document.createElement('div'); c.className='chips';
+  for (const it of items.slice(0,8)){ const s=document.createElement('span'); s.className='chip'; s.textContent=String(it); c.append(s); }
+  box.append(c); return box;
+}
+function kvBlock(title, node){ const b=document.createElement('div'); b.className='kv'; const l=document.createElement('span'); l.className='label'; l.textContent=title; b.append(l, node); return b; }
+function renderAI(j, heard){
+  const out=$('aiOut'); out.innerHTML='';
+  const src=document.createElement('div'); src.className='note';
+  src.textContent = heard ? 'Gemini listened to the audio for this review.' : "Gemini did not hear the audio. This review is based on the measurements and Gemini's general knowledge.";
+  out.append(src);
+  if (j.identified_song){ const p=document.createElement('div'); p.className='ident'; p.textContent='Identified as: '+j.identified_song; out.append(p); }
+  if (j.summary){ const p=document.createElement('p'); p.className='summary'; p.textContent=j.summary; out.append(p); }
+  if (Array.isArray(j.genres) && j.genres.length){
+    const box=document.createElement('div'); box.className='kv';
+    box.innerHTML='<span class="label">Genre</span>';
+    for (const g of j.genres.slice(0,4)){
+      const w=clamp01(Number(g.weight)/100)*100, row=document.createElement('div'); row.className='genre';
+      const n=document.createElement('span'); n.textContent=String(g.name||'');
+      const m=document.createElement('div'); m.className='meter'; m.innerHTML=`<i style="width:${w.toFixed(0)}%"></i>`;
+      const v=document.createElement('span'); v.className='mono note'; v.textContent=Math.round(w)+'%';
+      row.append(n,m,v); box.append(row);
+    }
+    out.append(box);
+  }
+  [['Mood', j.moods], ['Instruments', j.instruments], ['Good for', j.use_cases]].forEach(([t,a])=>{ const c=chipList(t,a); if (c) out.append(c); });
+  if (j.vocals){ const p=document.createElement('p'); p.textContent=String(j.vocals); out.append(kvBlock('Vocals', p)); }
+  if (j.lyrics && typeof j.lyrics==='object'){
+    const L=j.lyrics, box=document.createElement('div'); box.className='kv';
+    const l=document.createElement('span'); l.className='label'; l.textContent='Lyrics'+(L.language?' · '+L.language:'')+(L.mood?' · '+L.mood:'')+(L.explicit?' · explicit':''); box.append(l);
+    if (L.summary){ const p=document.createElement('p'); p.textContent=L.summary; p.style.maxWidth='68ch'; box.append(p); }
+    out.append(box);
+    const th=chipList('Lyric themes', L.themes); if (th) out.append(th);
+  }
+}
+
+// 16 kHz mono 16-bit WAV of the decoded track (max 6 min, about 15 MB as base64, under the 20 MB inline limit), base64. Small enough to send inline.
+function audioForGemini(){
+  const { mono, sr } = state; if (!mono) return null;
+  const target=16000, n=Math.min(Math.floor(mono.length*target/sr), target*360), ratio=sr/target;
+  const ab=new ArrayBuffer(44+n*2), v=new DataView(ab);
+  const w=(o,s)=>{ for (let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,target,true); v.setUint32(28,target*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40,n*2,true);
+  for (let i=0;i<n;i++){ const x=i*ratio, j=Math.floor(x), f=x-j; const s=(mono[j]||0)*(1-f)+(mono[j+1]||0)*f; v.setInt16(44+i*2, Math.max(-1,Math.min(1,s))*32767, true); }
+  const bytes=new Uint8Array(ab); let bin='';
+  for (let i=0;i<bytes.length;i+=0x8000) bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000));
+  return btoa(bin);
+}
+
+function applyEstimates(e){
+  e = e || {};
+  const bpm=Number(e.tempo_bpm), pc=pcFromName(e.key), minor=/min/i.test(e.mode||e.key||''), dur=Number(e.duration_s);
+  setRO(0,'Tempo', Number.isFinite(bpm)&&bpm>0 ? '~'+Math.round(bpm)+'<small>BPM</small>' : '–', 'Estimated by Gemini');
+  setRO(1,'Key', pc>=0 ? `${minor?MIN_NAMES[pc]:MAJ_NAMES[pc]}<small>${minor?'min':'maj'}</small><span class="camelot">${camelot(pc,minor)}</span>` : '–', 'Estimated by Gemini');
+  setRO(2,'Energy', esc(e.energy ? cap(e.energy) : '–'), 'Estimated by Gemini');
+  setRO(3,'Vocals', esc(e.vocal_type ? cap(e.vocal_type) : '–'), 'Estimated by Gemini');
+  setRO(4,'Length', Number.isFinite(dur)&&dur>0 ? fmtTime(dur) : '–', Number.isFinite(dur)&&dur>0 ? 'Estimated by Gemini' : 'Not known');
+}
+
+const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
+function buildPrompt(req, heard){
+  let src;
+  if (req.mode==='link'){
+    const named = req.artist && req.title ? `"${req.artist} – ${req.title}"` : 'an unnamed track';
+    src = heard ? `The attached YouTube video is ${named}. Listen to its audio and describe the music.`
+      : `Describe the recording ${named} from your knowledge of it. You cannot hear it. If you don't know this recording, say so plainly in the summary and keep every field cautious.`;
+  } else {
+    src = (heard ? 'The attached audio is the track (mono, 16 kHz, possibly only its first minutes). Listen to it. ' : 'You cannot hear the audio. ')
+      + `File name: ${JSON.stringify(req.name)}.\nMeasurements computed in the listener's browser (tempo and key are measured from the full file and are more reliable than estimates by ear):\n${JSON.stringify(req.features, null, 1)}`;
+  }
+  return `You are a music analyst writing a concise profile of a track, the way a music tagging service would.
+
+${src}
+
+Lyrics pasted by the listener:
+${req.lyrics || '(none)'}
+
+Reply with only a JSON object of this shape:
+${SHAPE}
+
+Rules:
+- identified_song: "Artist – Title" when the track is clearly a known recording; otherwise null.
+- summary: 2-4 plain sentences on the sound, feel and structure. Mention tempo and key naturally. Don't overclaim.
+- genres: 1-4 items, integer weights summing to 100.
+- moods: 3-6 short words or phrases. instruments: up to 6 instruments or sound sources you hear or that are likely. use_cases: up to 3 listening contexts.
+- vocals: one short phrase describing the vocals (e.g. "breathy female lead with stacked harmonies"), or null for instrumentals.
+- estimates: your best estimates; null where unknown.
+- lyrics: if lyrics were pasted, analyze them. Otherwise, if you heard sung words, analyze what you heard. Give the meaning in 2-3 sentences, 2-5 themes, tone, language and whether it is explicit. Never quote more than a few words of lyrics. null for instrumentals or when you have nothing to go on.`;
+}
+function parseJSONLoose(t){
+  try { return JSON.parse(t); } catch(_){}
+  const f=t.match(/```(?:json)?\s*([\s\S]*?)```/); if (f) { try { return JSON.parse(f[1]); } catch(_){} }
+  const a=t.indexOf('{'), b=t.lastIndexOf('}'); if (a>=0 && b>a) { try { return JSON.parse(t.slice(a,b+1)); } catch(_){} }
+  return null;
+}
+async function callGemini(parts, signal){
+  const key=$('keyIn').value.trim(), model=($('modelIn').value.trim() || DEFAULT_MODEL);
+  if (!/^[\w.-]+$/.test(model)) throw { msg:'That model ID has unexpected characters. Use an ID such as ' + DEFAULT_MODEL + '.' };
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method:'POST', signal, headers:{ 'content-type':'application/json', 'x-goog-api-key':key },
+    body: JSON.stringify({ contents:[{ role:'user', parts }], generationConfig:{ responseMimeType:'application/json', temperature:0.4 } }),
+  });
+  const j = await r.json().catch(()=>null);
+  if (!r.ok){
+    const m = j?.error?.message || '';
+    if (r.status===400 && /api key/i.test(m)) throw { msg:'Google rejected that API key. Copy it again from aistudio.google.com/apikey.' };
+    if (r.status===403) throw { msg:'This key is not allowed to use the Gemini API. Check that it came from Google AI Studio.' };
+    if (r.status===404) throw { msg:`Gemini has no model called "${model}". Open Model and enter a current model ID.` };
+    if (r.status===429) throw { msg:'Your Gemini free-tier limit was reached. Wait a minute, or try again tomorrow if the daily limit is used up.' };
+    if (r.status===413 || /too large|payload/i.test(m)) throw { msg:'The audio was too large to send. Turn off listening, or try a shorter track.' };
+    throw { msg: m ? 'Gemini error: ' + m : `Gemini returned an error (${r.status}). Try again in a moment.` };
+  }
+  const text = (j?.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('');
+  if (!text){ const why=j?.promptFeedback?.blockReason || j?.candidates?.[0]?.finishReason; throw { msg: why ? `Gemini returned no review (${why}). Try without lyrics, or with listening off.` : 'Gemini returned an empty reply. Try again.' }; }
+  const out = parseJSONLoose(text);
+  if (!out || typeof out!=='object') throw { msg:'Gemini replied in an unexpected format. Press Write AI review to try again.' };
+  return out;
+}
+async function requestReview(){
+  if (!aiReady){ resetAI(); $('keyIn').focus(); return; }
+  const btn=$('aiBtn'), stop=$('aiStop'), lyrics=$('lyrics').value.trim().slice(0,8000);
+  let req, parts=[], heard=false;
+  if (state.source==='link'){
+    req = { mode:'link', ...state.linkReq, lyrics };
+    if (req.youtubeId){ parts.push({ file_data:{ file_uri:'https://www.youtube.com/watch?v='+req.youtubeId } }); heard=true; }
+  } else if (state.feats){
+    req = { mode:'file', name: state.isDemo ? 'Example loop synthesized in the browser (pads, saw bass, kick, snare, hi-hats, square-wave lead)' : state.name, features: featsForPrompt(), lyrics };
+    if ($('listenChk').checked){ parts.push({ inline_data:{ mime_type:'audio/wav', data:audioForGemini() } }); heard=true; }
+  } else return;
+  parts.push({ text: buildPrompt(req, heard) });
+  btn.disabled=true; $('linkBtn').disabled=true; stop.hidden=false; aiCtl=new AbortController();
+  aiPlaceholder(heard ? 'Gemini is listening to the track… this usually takes 15–60 seconds.' : 'Gemini is writing the review…');
+  try {
+    const review = await callGemini(parts, aiCtl.signal);
+    renderAI(review, heard);
+    if (state.source==='link'){ applyEstimates(review.estimates); renderLinkPanel(heard); }
+  } catch(e){
+    if (e?.name==='AbortError') aiPlaceholder('Stopped.');
+    else if (e instanceof TypeError) aiPlaceholder("Earprint couldn't reach Google's Gemini API. Check your internet connection and try again.");
+    else aiPlaceholder(e?.msg || 'The review failed. Try again in a moment.');
+    if (state.source==='link') renderLinkPanel(heard);
+  } finally { aiCtl=null; stop.hidden=true; btn.disabled=!aiReady || busy; $('linkBtn').disabled=false; }
+}
+$('aiBtn').onclick = requestReview;
+$('aiStop').onclick = () => aiCtl?.abort();
+
+/* ---------- Streaming links: YouTube audio is sent to Gemini by URL; Spotify uses Gemini's knowledge ---------- */
+function linkMsg(t, err){ const m=$('linkMsg'); m.textContent=t; m.classList.toggle('err', !!err); }
+function parseLink(s){
+  s=s.trim(); if (!s) return null;
+  let m = s.match(/open\.spotify\.com\/(?:intl-[\w-]+\/)?track\/([A-Za-z0-9]{22})/) || s.match(/spotify:track:([A-Za-z0-9]{22})/);
+  if (m) return {platform:'spotify', id:m[1], label:'Spotify', url:'https://open.spotify.com/track/'+m[1]};
+  m = s.match(/(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+  if (m) return {platform:'youtube', id:m[1], label:/music\.youtube/.test(s)?'YouTube Music':'YouTube', url:'https://www.youtube.com/watch?v='+m[1]};
+  if (/spotify\.com\/(?:intl-[\w-]+\/)?(album|playlist|artist|episode|show)/.test(s) || /youtube\.com\/(playlist|channel|@)/.test(s)) return {error:'That link points to an album, playlist or channel. Paste a link to a single song.'};
+  if (/^(https?:|www\.)/i.test(s)) return {error:'Earprint recognizes Spotify and YouTube Music track links. Check the link, or clear it and just type the artist and title.'};
+  return {text:s};
+}
+function pcFromName(s){
+  const m=String(s||'').trim().match(/^([A-Ga-g])\s*([#♯b♭]?)/); if (!m) return -1;
+  const base={c:0,d:2,e:4,f:5,g:7,a:9,b:11}[m[1].toLowerCase()];
+  return (base + (/[#♯]/.test(m[2])?1:/[b♭]/.test(m[2])?-1:0) + 12) % 12;
+}
+const cap = s => { s=String(s||'').replace(/_/g,' '); return s.charAt(0).toUpperCase()+s.slice(1); };
+function renderLinkPanel(heard){
+  const body=$('linkBody'), L=state.link; body.innerHTML='';
+  const p=document.createElement('p');
+  p.textContent = heard ? `Gemini listened to the ${L?.label||'YouTube'} audio. Tempo and key are its estimates by ear, so they are less exact than the file analysis.`
+    : "Gemini has not heard this track. Everything here comes from its general knowledge of the song and may be wrong, especially for less-known releases. For a listened-to review, use a YouTube Music link or upload the file.";
+  body.append(kvBlock('Source', p));
+  if (L){ const a=document.createElement('a'); a.href=L.url; a.target='_blank'; a.rel='noopener'; a.className='chip'; a.textContent='Open on '+L.label; const c=document.createElement('div'); c.className='chips'; c.append(a); body.append(kvBlock('Link', c)); }
+}
+$('linkForm').addEventListener('submit', e => {
+  e.preventDefault(); if (busy) return;
+  const link=parseLink($('linkIn').value);
+  let artist=$('artistIn').value.trim(), title=$('titleIn').value.trim();
+  if (link?.error) return linkMsg(link.error, true);
+  if (link?.text && !artist && !title){
+    const parts=link.text.split(/\s+[-–—]\s+/);
+    if (parts.length>=2){ artist=parts[0].trim(); title=parts.slice(1).join(' - ').trim(); $('artistIn').value=artist; $('titleIn').value=title; }
+  }
+  const real = link && link.platform ? link : null;
+  const yt = real?.platform==='youtube';
+  if (!yt && (!artist || !title)) return linkMsg(real ? 'Spotify links don\'t include the song\'s name. Type the artist and title too.' : 'Type the artist and the song title.', true);
+  if (!aiReady){ $('keyIn').focus(); return linkMsg('Paste your Gemini API key in the AI review section first.', true); }
+  audio.pause();
+  const name = artist && title ? `${artist} – ${title}` : `${real.label} track ${real.id}`;
+  state = { source:'link', link:real, name, feats:null, env:null, linkReq:{ artist, title, platform:real?.platform||null, youtubeId: yt ? real.id : null } };
+  $('timelinePanel').hidden=true; $('localGrid').hidden=true; $('linkPanel').hidden=false;
+  $('trackName').textContent=name; { const b=document.createElement('span'); b.className='badge'; b.textContent=real?real.label:'By name'; $('trackName').append(b); }
+  $('trackMeta').textContent = yt ? 'Gemini will listen to the YouTube audio' : 'Gemini will describe it from its knowledge of the song';
+  setStatus(''); linkMsg('');
+  for (let i=0;i<5;i++) setRO(i, ['Tempo','Key','Energy','Vocals','Length'][i], '…', 'Waiting for Gemini');
+  $('linkBody').innerHTML='';
+  requestReview();
+});
+
+/* ---------- Boot ---------- */
+(async () => {
+  try {
+    setStatus('Synthesizing example loop…');
+    const buf = await makeDemo();
+    audio.src = URL.createObjectURL(wavBlob(buf));
+    await run(buf, 'Example loop', '31 s synthesized in your browser · A minor chords, kick, snare, hats', true);
+  } catch(e){ console.error(e); $('trackName').textContent='No track loaded'; setStatus('Choose an audio file to begin.'); }
+})();
+(() => {
+  const k=store.get(KEY_STORE), m=store.get(MODEL_STORE);
+  if (k){ $('keyIn').value=k; $('rememberChk').checked=true; }
+  $('modelIn').value = m || DEFAULT_MODEL;
+  $('keyIn').addEventListener('input', refreshKeyState);
+  $('rememberChk').addEventListener('change', () => { store.set(KEY_STORE, $('rememberChk').checked ? ($('keyIn').value.trim() || null) : null); });
+  $('modelIn').addEventListener('change', () => { const v=$('modelIn').value.trim(); store.set(MODEL_STORE, v && v!==DEFAULT_MODEL ? v : null); });
+  refreshKeyState();
+  if (state.source!=='link') resetAI();
+})();
+})();
+</script>
+</body>
+</html>
