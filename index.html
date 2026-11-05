@@ -77,7 +77,8 @@ button:disabled{opacity:.5;cursor:default;filter:none}
 .panel-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 12px}
 .grid3{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:20px}
 @media (max-width:900px){.grid3{grid-template-columns:1fr 1fr}.grid3 .traits{grid-column:1/-1}}
-@media (max-width:620px){.grid3{grid-template-columns:1fr}}
+.grid3.two{grid-template-columns:1fr 1fr}.grid3.two .traits{grid-column:auto}
+@media (max-width:620px){.grid3,.grid3.two{grid-template-columns:1fr}}
 
 /* Timeline */
 .tl-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -96,6 +97,8 @@ button:disabled{opacity:.5;cursor:default;filter:none}
 .meter{grid-column:1/-1;height:8px;border-radius:4px;background:var(--chip);position:relative;overflow:hidden}
 .meter>i{position:absolute;inset:0 auto 0 0;background:var(--accent-2);border-radius:4px;transition:width .5s ease}
 .traits-list{display:flex;flex-direction:column;gap:11px}
+#radar{width:100%;max-width:380px;align-self:center;display:block;overflow:visible}
+#radar .poly{fill:var(--accent);fill-opacity:.18;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;transition:all .5s ease}
 
 /* Mood */
 #moodSvg{width:100%;max-width:300px;aspect-ratio:1;align-self:center;display:block}
@@ -194,7 +197,7 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
   <section class="panel" id="linkPanel" hidden>
     <div class="panel-head"><h2>Streaming track</h2><span class="label">From Gemini</span></div>
     <div class="link-body" id="linkBody"></div>
-    <p class="note">The waveform, pitch profile and character scores need the audio file itself, so they are hidden for streaming tracks.</p>
+    <p class="note">The character radar and mood chart below are Gemini's estimates. The waveform and pitch profile need the audio file itself, so they are hidden for streaming tracks.</p>
   </section>
 
   <section class="panel" id="timelinePanel">
@@ -213,15 +216,16 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
 
   <div class="grid3" id="localGrid">
     <section class="panel traits">
-      <div class="panel-head"><h2>Character</h2><span class="label">0–100</span></div>
+      <div class="panel-head"><h2>Character</h2><span class="label" id="traitsLabel">0–100</span></div>
+      <svg id="radar" viewBox="0 0 340 250" role="img" aria-label="Radar chart of character scores"></svg>
       <div class="traits-list" id="traits"></div>
     </section>
     <section class="panel">
-      <div class="panel-head"><h2>Mood</h2><span class="label">Valence × arousal</span></div>
+      <div class="panel-head"><h2>Mood</h2><span class="label" id="moodLabel">Valence × arousal</span></div>
       <div class="mood-word" id="moodWord">–</div>
       <svg id="moodSvg" viewBox="0 0 220 220" role="img" aria-label="Mood plane"></svg>
     </section>
-    <section class="panel">
+    <section class="panel" id="chromaPanel">
       <div class="panel-head"><h2>Pitch profile</h2><span class="label">Chroma</span></div>
       <div class="chroma" id="chroma"></div>
       <p class="note" id="chromaNote">Bars show how much each pitch class sounds across the track. Blue bars are in the detected scale; the pink bar is the tonic.</p>
@@ -519,32 +523,54 @@ function render(){
   $('roDur').innerHTML = fmtTime(f.dur);
   $('roDurS').textContent = `${f.segs.length} energy section${f.segs.length===1?'':'s'} · ${f.onsetRate.toFixed(1)} onsets/s`;
 
-  const T=f.traits, rows=[
-    ['Energy', T.energy, T.energy>70?'driving':T.energy>40?'moderate':'gentle'],
-    ['Danceability', T.dance, T.dance>65?'locked groove':T.dance>40?'some groove':'free-time'],
-    ['Brightness', T.bright, Math.round(f.centroid)+' Hz centroid'],
-    ['Bass weight', T.bass, Math.round(f.lowRatio*100)+'% below 150 Hz'],
-    ['Dynamics', T.dyn, f.lra.toFixed(1)+' dB range'],
-    ['Acoustic feel', T.acoustic, 'estimate'],
-  ];
-  $('traits').innerHTML = rows.map(([n,v,d])=>`<div class="trait"><span class="n">${n}</span><span class="val">${Math.round(v)} · ${d}</span><div class="meter"><i style="width:${v.toFixed(1)}%"></i></div></div>`).join('');
+  const T=f.traits;
+  renderTraits(T, {
+    energy: T.energy>70?'driving':T.energy>40?'moderate':'gentle',
+    dance: T.dance>65?'locked groove':T.dance>40?'some groove':'free-time',
+    bright: Math.round(f.centroid)+' Hz centroid', bass: Math.round(f.lowRatio*100)+'% below 150 Hz',
+    dyn: f.lra.toFixed(1)+' dB range', acoustic: 'estimate' }, false);
 
   const inScale = k.minor ? [0,2,3,5,7,8,10] : [0,2,4,5,7,9,11];
   $('chroma').innerHTML = f.chroma.map((v,i)=>{
     const rel=(i-k.pc+12)%12, cls = rel===0?'tonic':inScale.includes(rel)?'inkey':'';
     return `<div class="col ${cls}" title="${PC_LABEL[i]}: ${Math.round(v*100)}%"><div class="b" style="height:${Math.max(3,v*118)}px"></div><span class="pc">${PC_LABEL[i]}</span></div>`;
   }).join('');
-  renderMood();
+  state.mood={ v:f.valence, a:f.arousal }; renderMood(false);
   draw(); updTime();
 }
 function moodLabel(v,a){
   if (a>=0.5) return v>=0.5 ? (a>0.72?'Euphoric':'Upbeat') : (a>0.72?'Aggressive':'Tense');
   return v>=0.5 ? (a<0.28?'Serene':'Warm') : (a<0.28?'Somber':'Melancholic');
 }
-function renderMood(){
-  const f=state.feats, svg=$('moodSvg'); if (!f) return;
-  const P=24, S=220-2*P, x=P+f.valence*S, y=P+(1-f.arousal)*S;
-  $('moodWord').textContent = moodLabel(f.valence, f.arousal);
+const TRAIT_AXES=[['energy','Energy'],['dance','Danceability'],['bright','Brightness'],['bass','Bass weight'],['dyn','Dynamics'],['acoustic','Acoustic feel']];
+function renderTraits(T, desc, estimated){
+  $('traitsLabel').textContent = estimated ? 'Estimated by Gemini' : '0–100';
+  $('traits').innerHTML = TRAIT_AXES.map(([k,n])=>{ const v=clamp01((+T[k]||0)/100)*100; return `<div class="trait"><span class="n">${n}</span><span class="val">${Math.round(v)}${desc&&desc[k]?' · '+esc(desc[k]):''}</span><div class="meter"><i style="width:${v.toFixed(1)}%"></i></div></div>`; }).join('');
+  renderRadar(T);
+}
+function renderRadar(T){
+  const cx=170, cy=128, R=84, n=TRAIT_AXES.length, ang=i=>-Math.PI/2+i*2*Math.PI/n;
+  const pt=(i,r)=>[cx+Math.cos(ang(i))*r, cy+Math.sin(ang(i))*r];
+  const ring=f=>TRAIT_AXES.map((_,i)=>pt(i,R*f).map(v=>v.toFixed(1)).join(',')).join(' ');
+  let out='';
+  for (const f of [0.25,0.5,0.75,1]) out+=`<polygon points="${ring(f)}" fill="${f===1?'var(--bg)':'none'}" stroke="var(--line)" stroke-width="1"/>`;
+  TRAIT_AXES.forEach((_,i)=>{ const [x,y]=pt(i,R); out+=`<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
+  out+=`<text x="${cx+3}" y="${(cy-R*0.5+3).toFixed(1)}" font-size="8.5" fill="var(--muted)" font-family="IBM Plex Mono, ui-monospace, monospace">50</text>`;
+  const vals=TRAIT_AXES.map(([k])=>clamp01((+T[k]||0)/100));
+  out+=`<polygon class="poly" points="${vals.map((v,i)=>pt(i,R*Math.max(v,0.02)).map(x=>x.toFixed(1)).join(',')).join(' ')}"/>`;
+  vals.forEach((v,i)=>{ const [x,y]=pt(i,R*Math.max(v,0.02)); out+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>`; });
+  TRAIT_AXES.forEach(([k,name],i)=>{
+    const [x,y]=pt(i,R+16), c=Math.cos(ang(i)), anchor=Math.abs(c)<0.2?'middle':c>0?'start':'end';
+    const dy = Math.sin(ang(i))<-0.5 ? -4 : Math.sin(ang(i))>0.5 ? 10 : 3;
+    out+=`<text x="${x.toFixed(1)}" y="${(y+dy).toFixed(1)}" text-anchor="${anchor}" font-size="11" fill="var(--ink)" font-family="IBM Plex Sans, system-ui, sans-serif">${name} <tspan fill="var(--muted)" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="10">${Math.round(vals[i]*100)}</tspan></text>`;
+  });
+  $('radar').innerHTML=out;
+}
+function renderMood(estimated){
+  const m=state.mood, svg=$('moodSvg'); if (!m) return;
+  if (estimated!==undefined) $('moodLabel').textContent = estimated ? 'Estimated by Gemini' : 'Valence × arousal';
+  const P=24, S=220-2*P, x=P+m.v*S, y=P+(1-m.a)*S;
+  $('moodWord').textContent = moodLabel(m.v, m.a);
   const q=(tx,ty,t,anchor)=>`<text x="${tx}" y="${ty}" font-size="10" text-anchor="${anchor}" fill="var(--muted)" font-family="IBM Plex Mono, ui-monospace, monospace">${t}</text>`;
   svg.innerHTML = `
     <rect x="${P}" y="${P}" width="${S}" height="${S}" rx="8" fill="var(--bg)" stroke="var(--line)"/>
@@ -571,7 +597,7 @@ async function run(buf, name, meta, isDemo){
   const feats = await analyze(mono, sr, p=>{ $('prog').style.width=(p*100).toFixed(1)+'%'; });
   $('progWrap').hidden=true;
   state = { source:'file', buf, mono, sr, feats, name, env:buildEnv(mono), isDemo, peakDb:20*Math.log10(peak+1e-12) };
-  $('timelinePanel').hidden=false; $('localGrid').hidden=false; $('linkPanel').hidden=true;
+  $('timelinePanel').hidden=false; $('localGrid').hidden=false; $('localGrid').classList.remove('two'); $('chromaPanel').hidden=false; $('linkPanel').hidden=true;
   $('trackName').innerHTML=''; $('trackName').append(name); if (isDemo){ const b=document.createElement('span'); b.className='badge'; b.textContent='Example'; $('trackName').append(b); }
   $('trackMeta').textContent = meta + (buf.length>maxLen ? ' · first 12 minutes analyzed' : '');
   setStatus(isDemo ? 'This is a synthesized example loop. Choose your own file to analyze it.' : 'Analysis complete.');
@@ -724,6 +750,13 @@ function audioForGemini(){
   return btoa(bin);
 }
 
+function applyScores(sc){
+  if (!sc || typeof sc!=='object') return;
+  const n=k=>Math.max(0,Math.min(100,Number(sc[k])||0));
+  renderTraits({ energy:n('energy'), dance:n('danceability'), bright:n('brightness'), bass:n('bass_weight'), dyn:n('dynamics'), acoustic:n('acoustic') }, null, true);
+  state.mood={ v:n('valence')/100, a:n('arousal')/100 }; renderMood(true);
+  $('localGrid').hidden=false; $('chromaPanel').hidden=true; $('localGrid').classList.add('two');
+}
 function applyEstimates(e){
   e = e || {};
   const bpm=Number(e.tempo_bpm), pc=pcFromName(e.key), minor=/min/i.test(e.mode||e.key||''), dur=Number(e.duration_s);
@@ -734,7 +767,7 @@ function applyEstimates(e){
   setRO(4,'Length', Number.isFinite(dur)&&dur>0 ? fmtTime(dur) : '–', Number.isFinite(dur)&&dur>0 ? 'Estimated by Gemini' : 'Not known');
 }
 
-const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
+const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "scores": null or {"energy": number, "danceability": number, "brightness": number, "bass_weight": number, "dynamics": number, "acoustic": number, "valence": number, "arousal": number}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
 function buildPrompt(req, heard){
   let src;
   if (req.mode==='link'){
@@ -762,6 +795,7 @@ Rules:
 - moods: 3-6 short words or phrases. instruments: up to 6 instruments or sound sources you hear or that are likely. use_cases: up to 3 listening contexts.
 - vocals: one short phrase describing the vocals (e.g. "breathy female lead with stacked harmonies"), or null for instrumentals.
 - estimates: your best estimates; null where unknown.
+- scores: integers 0-100 for how the track sounds: energy, danceability, brightness (dark to bright timbre), bass_weight, dynamics (compressed to very dynamic), acoustic (electronic to acoustic), valence (sad to happy) and arousal (calm to intense). Required when no browser measurements were given; otherwise null.
 - lyrics: if lyrics were pasted, analyze them. Otherwise, if you heard sung words, analyze what you heard. Give the meaning in 2-3 sentences, 2-5 themes, tone, language and whether it is explicit. Never quote more than a few words of lyrics. null for instrumentals or when you have nothing to go on.`;
 }
 function parseJSONLoose(t){
@@ -810,7 +844,7 @@ async function requestReview(){
   try {
     const review = await callGemini(parts, aiCtl.signal);
     renderAI(review, heard);
-    if (state.source==='link'){ applyEstimates(review.estimates); renderLinkPanel(heard); }
+    if (state.source==='link'){ applyEstimates(review.estimates); renderLinkPanel(heard); applyScores(review.scores); }
   } catch(e){
     if (e?.name==='AbortError') aiPlaceholder('Stopped.');
     else if (e instanceof TypeError) aiPlaceholder("Earprint couldn't reach Google's Gemini API. Check your internet connection and try again.");
@@ -862,7 +896,7 @@ $('linkForm').addEventListener('submit', e => {
   if (!aiReady){ $('keyIn').focus(); return linkMsg('Paste your Gemini API key in the AI review section first.', true); }
   audio.pause();
   const name = artist && title ? `${artist} – ${title}` : `${real.label} track ${real.id}`;
-  state = { source:'link', link:real, name, feats:null, env:null, linkReq:{ artist, title, platform:real?.platform||null, youtubeId: yt ? real.id : null } };
+  state = { source:'link', link:real, name, feats:null, env:null, mood:null, linkReq:{ artist, title, platform:real?.platform||null, youtubeId: yt ? real.id : null } };
   $('timelinePanel').hidden=true; $('localGrid').hidden=true; $('linkPanel').hidden=false;
   $('trackName').textContent=name; { const b=document.createElement('span'); b.className='badge'; b.textContent=real?real.label:'By name'; $('trackName').append(b); }
   $('trackMeta').textContent = yt ? 'Gemini will listen to the YouTube audio' : 'Gemini will describe it from its knowledge of the song';
