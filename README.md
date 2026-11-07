@@ -3,7 +3,7 @@
 A music analyzer that runs entirely in the browser.
 
 - **Measured locally, no AI needed:** tempo (BPM), key with Camelot code, loudness, loudness range, energy sections, pitch profile, character scores and a mood estimate.
-- **AI review with Gemini:** a just-for-fun 0–10 rating, genre weights, moods, instruments, vocals, listening contexts and lyric themes. Gemini can listen to an uploaded file or to a YouTube / YouTube Music link.
+- **AI review with Gemini:** a just-for-fun 0–10 rating with suggestions for improving the track, genre weights, moods, instruments, vocals, listening contexts and lyric themes. Gemini can listen to an uploaded file or to a YouTube / YouTube Music link.
 
 ## Your own Gemini key
 

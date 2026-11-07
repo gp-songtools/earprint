@@ -139,6 +139,9 @@ textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px
 .rating .segs i.on{background:var(--accent)}
 .rating .pc{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13.5px}
 .rating .pc .label{padding-top:2px}
+.rating .tips{flex-basis:100%;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.rating .tips ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px;font-size:14px;max-width:72ch}
+.rating .tips li::marker{font-family:var(--f-mono);font-size:12px;color:var(--accent)}
 .ident{font-size:13px;color:var(--accent-2);font-weight:600}
 .note{font-size:12.5px;color:var(--muted);max-width:80ch}
 /* Streaming link lookup */
@@ -770,7 +773,16 @@ function renderRating(R){
     const b=document.createElement('span'); b.textContent=String(R[k]); pc.append(a,b);
   }
   if (pc.childElementCount) body.append(pc);
-  card.append(s, body); box.append(card); return box;
+  card.append(s, body);
+  const tips=(Array.isArray(R.suggestions)?R.suggestions:[]).map(x=>String(x||'').trim()).filter(Boolean).slice(0,4);
+  if (tips.length){
+    const t=document.createElement('div'); t.className='tips';
+    const tl=document.createElement('span'); tl.className='label'; tl.textContent='Suggestions to make it better'; t.append(tl);
+    const ol=document.createElement('ol');
+    for (const x of tips){ const li=document.createElement('li'); li.textContent=x; ol.append(li); }
+    t.append(ol); card.append(t);
+  }
+  box.append(card); return box;
 }
 
 // 16 kHz mono 16-bit WAV of the decoded track (max 6 min, about 15 MB as base64, under the 20 MB inline limit), base64. Small enough to send inline.
@@ -804,7 +816,7 @@ function applyEstimates(e){
   setRO(4,'Length', Number.isFinite(dur)&&dur>0 ? fmtTime(dur) : '–', Number.isFinite(dur)&&dur>0 ? 'Estimated by Gemini' : 'Not known');
 }
 
-const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "rating": {"score": number, "verdict": string, "best": string, "worst": string}, "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "scores": null or {"energy": number, "danceability": number, "brightness": number, "bass_weight": number, "dynamics": number, "acoustic": number, "valence": number, "arousal": number}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
+const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "rating": {"score": number, "verdict": string, "best": string, "worst": string, "suggestions": [string]}, "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "scores": null or {"energy": number, "danceability": number, "brightness": number, "bass_weight": number, "dynamics": number, "acoustic": number, "valence": number, "arousal": number}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
 function buildPrompt(req, heard){
   let src;
   if (req.mode==='link'){
@@ -829,7 +841,7 @@ Rules:
 - identified_song: "Artist – Title" when the track is clearly a known recording; otherwise null.
 - summary: 2-4 plain sentences on the sound, feel and structure. Mention tempo and key naturally. Don't overclaim.
 - genres: 1-4 items, integer weights summing to 100.
-- rating: your own honest, playful opinion of the track as a listener. score: 0-10 with one decimal (use the whole range; most tracks land 5-8). verdict: one punchy, good-natured sentence. best: the strongest element in a short phrase. worst: what could be better in a short phrase. Judge the music itself, never the listener.
+- rating: your own honest, playful opinion of the track as a listener. score: 0-10 with one decimal (use the whole range; most tracks land 5-8). verdict: one punchy, good-natured sentence. best: the strongest element in a short phrase. worst: what could be better in a short phrase. suggestions: 2-4 specific, actionable ideas to improve the track (arrangement, production, mix, performance, structure or lyrics), each one sentence naming what to change and where or how, tied to what you heard or measured (e.g. \"Drop the pads for the first 8 bars of the second chorus so the return hits harder.\"). Avoid generic advice like \"make it more dynamic\". For a well-known released recording, frame them as ideas for a remix or cover. Judge the music itself, never the listener.
 - moods: 3-6 short words or phrases. instruments: up to 6 instruments or sound sources you hear or that are likely. use_cases: up to 3 listening contexts.
 - vocals: one short phrase describing the vocals (e.g. "breathy female lead with stacked harmonies"), or null for instrumentals.
 - estimates: your best estimates; null where unknown.
