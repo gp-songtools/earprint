@@ -144,6 +144,10 @@ textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px
 .rating .tips li::marker{font-family:var(--f-mono);font-size:12px;color:var(--accent)}
 .ident{font-size:13px;color:var(--accent-2);font-weight:600}
 .note{font-size:12.5px;color:var(--muted);max-width:80ch}
+.gpm ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px;font-size:14px;max-width:80ch}
+.gpm ol b{font-weight:600}
+.gpm-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.gpm textarea{width:100%;box-sizing:border-box;font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:8px}
 /* Streaming link lookup */
 .link-form{gap:10px}
 .link-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}
@@ -601,14 +605,18 @@ function renderMood(estimated){
 
 /* ---------- Pipeline ---------- */
 function setStatus(t, err){ const s=$('status'); s.textContent=t; s.classList.toggle('err', !!err); }
-async function run(buf, name, meta, isDemo){
+/* loadGen: the newest load wins. A file chosen while the startup demo is still being
+   made or analyzed replaces it, instead of being ignored or overwritten by it. */
+let loadGen=0, demoBusy=false;
+async function run(buf, name, meta, isDemo, gen=loadGen){
   busy=true; $('aiBtn').disabled=true;
   const sr0=buf.sampleRate, chs=buf.numberOfChannels, maxLen=Math.min(buf.length, sr0*720);
   let peak=0; const data=[]; for (let c=0;c<chs;c++){ const d=buf.getChannelData(c); data.push(d); for (let i=0;i<maxLen;i++){ const v=d[i]<0?-d[i]:d[i]; if (v>peak) peak=v; } }
   const fac = sr0>=32000 ? 2 : 1, sr=sr0/fac, n=Math.floor(maxLen/fac), mono=new Float32Array(n);
   for (let i=0;i<n;i++){ let s=0; for (let c=0;c<chs;c++) for (let j=0;j<fac;j++) s+=data[c][i*fac+j]; mono[i]=s/(chs*fac); }
   $('progWrap').hidden=false; setStatus('Analyzing…');
-  const feats = await analyze(mono, sr, p=>{ $('prog').style.width=(p*100).toFixed(1)+'%'; });
+  const feats = await analyze(mono, sr, p=>{ if (gen===loadGen) $('prog').style.width=(p*100).toFixed(1)+'%'; });
+  if (gen!==loadGen) return;
   $('progWrap').hidden=true;
   state = { source:'file', buf, mono, sr, feats, name, env:buildEnv(mono), isDemo, peakDb:20*Math.log10(peak+1e-12) };
   $('timelinePanel').hidden=false; $('localGrid').hidden=false; $('localGrid').classList.remove('two'); $('chromaPanel').hidden=false; $('linkPanel').hidden=true;
@@ -620,7 +628,8 @@ async function run(buf, name, meta, isDemo){
 }
 
 async function loadFile(file){
-  if (!file || busy) return;
+  if (!file || (busy && !demoBusy)) return;
+  const gen=++loadGen;
   if (!/^audio\//.test(file.type) && !/\.(mp3|wav|flac|ogg|oga|m4a|aac|aiff?|opus|webm)$/i.test(file.name)){ setStatus('That file is not audio. Choose an MP3, WAV, FLAC, OGG or M4A file.', true); return; }
   audio.pause(); busy=true; setStatus('Decoding ' + file.name + '…');
   try {
@@ -631,7 +640,8 @@ async function loadFile(file){
     audio.src = URL.createObjectURL(file);
     busy=false;
     const meta = `${(file.size/1048576).toFixed(1)} MB · ${buf.numberOfChannels===1?'mono':'stereo'} · ${file.name.split('.').pop().toUpperCase()}`;
-    await run(buf, file.name.replace(/\.[^.]+$/, ''), meta, false);
+    if (gen!==loadGen) return;
+    await run(buf, file.name.replace(/\.[^.]+$/, ''), meta, false, gen);
   } catch(e){
     busy=false; console.error(e);
     setStatus('This browser could not decode that file. Try converting it to MP3 or WAV.', true);
@@ -740,6 +750,7 @@ function renderAI(j, heard){
     }
     out.append(box);
   }
+  const m=heard && state.source!=='link' ? renderMastering(j.mastering) : null; if (m) out.append(m);
   [['Mood', j.moods], ['Instruments', j.instruments], ['Good for', j.use_cases]].forEach(([t,a])=>{ const c=chipList(t,a); if (c) out.append(c); });
   if (j.vocals){ const p=document.createElement('p'); p.textContent=String(j.vocals); out.append(kvBlock('Vocals', p)); }
   if (j.lyrics && typeof j.lyrics==='object'){
@@ -749,6 +760,61 @@ function renderAI(j, heard){
     out.append(box);
     const th=chipList('Lyric themes', L.themes); if (th) out.append(th);
   }
+}
+
+/* Edits in GP Mastering's import format (gp-songtools/gp-master, AI suggestions >
+   Paste suggestions from another tool). Times are seconds from the start of the
+   uploaded file, so they line up when the same file is loaded there. */
+const GPM_ACT={level:1,eq:1,tame:1,bypass:1}, GPM_SHAPE={bell:'bell',narrow:'narrow',wide:'wide',low_shelf:'low shelf',high_shelf:'high shelf'};
+function gpmClean(M){
+  if (!M || typeof M!=='object' || !Array.isArray(M.edits)) return null;
+  const n=v=>{ const x=typeof v==='string'?parseFloat(v):v; return Number.isFinite(x)?x:null; };
+  const edits=M.edits.slice(0,12).map(e=>{
+    const s=n(e?.start), t=n(e?.end), a=String(e?.action||'');
+    if (s==null || t==null || t-s<0.25 || !GPM_ACT[a]) return null;
+    const o={ start:+s.toFixed(2), end:+t.toFixed(2), section:String(e.section||''), target:['vocals','drums','bass','other'].includes(e.target)?e.target:'mix', action:a, reason:String(e.reason||'') };
+    if (a==='level'||a==='eq'){ const g=n(e.gain_db); if (!g) return null; o.gain_db=Math.max(-12,Math.min(12,g)); }
+    if (a==='eq'){ o.freq_hz=Math.max(20,Math.min(20000,Math.round(n(e.freq_hz)||1000))); o.shape=GPM_SHAPE[e.shape]?e.shape:'bell'; }
+    if (a==='tame') o.strength=['light','medium','strong'].includes(e.strength)?e.strength:'medium';
+    return o;
+  }).filter(Boolean);
+  const advice=(Array.isArray(M.advice)?M.advice:[]).slice(0,12).map(a=>{ const o={ text:String(a?.text||'') }; const s=n(a?.start), t=n(a?.end); if (s!=null&&t!=null){ o.start=s; o.end=t; } if (a?.section) o.section=String(a.section); return o; }).filter(a=>a.text);
+  return edits.length||advice.length ? { summary:String(M.summary||''), edits, advice } : null;
+}
+function gpmDesc(e){
+  const g=v=>(v>0?'+':'')+v+' dB';
+  return e.action==='level' ? 'Level '+g(e.gain_db) : e.action==='eq' ? 'EQ '+g(e.gain_db)+' at '+(e.freq_hz>=1000?(e.freq_hz/1000)+' kHz':e.freq_hz+' Hz')+' ('+GPM_SHAPE[e.shape]+')'
+    : e.action==='tame' ? 'Tame dynamics, '+e.strength : 'No tone processing';
+}
+function renderMastering(raw){
+  const M=gpmClean(raw); if (!M) return null;
+  const box=document.createElement('div'); box.className='kv gpm';
+  const l=document.createElement('span'); l.className='label'; l.textContent='Edits for GP Mastering'; box.append(l);
+  if (M.summary){ const p=document.createElement('p'); p.className='note'; p.textContent=M.summary; box.append(p); }
+  const ol=document.createElement('ol');
+  for (const e of M.edits){
+    const li=document.createElement('li'), b=document.createElement('b');
+    b.textContent=fmtTime(e.start)+'–'+fmtTime(e.end)+(e.section?' · '+e.section:'')+' · '+gpmDesc(e);
+    li.append(b, document.createTextNode(e.reason?' — '+e.reason:''));
+    if (e.target!=='mix'){ const t=document.createElement('span'); t.className='note'; t.textContent=' (meant for the '+e.target+')'; li.append(t); }
+    ol.append(li);
+  }
+  if (M.edits.length) box.append(ol);
+  if (M.advice.length){
+    const a=document.createElement('p'); a.className='note';
+    a.textContent='Also suggested, not applied by GP Mastering: '+M.advice.map(x=>(x.start!=null?fmtTime(x.start)+'–'+fmtTime(x.end)+' ':'')+x.text).join(' · ');
+    box.append(a);
+  }
+  const row=document.createElement('div'); row.className='gpm-row';
+  const btn=document.createElement('button'); btn.type='button'; btn.textContent='Copy for GP Mastering';
+  const msg=document.createElement('span'); msg.className='note'; msg.setAttribute('role','status');
+  const json=JSON.stringify(M, null, 1);
+  btn.onclick=async()=>{
+    try { await navigator.clipboard.writeText(json); msg.textContent='Copied. In GP Mastering, load the same file, open AI suggestions › Paste suggestions from another tool, paste and press Import.'; }
+    catch(_){ let ta=box.querySelector('textarea'); if (!ta){ ta=document.createElement('textarea'); ta.readOnly=true; ta.rows=6; ta.value=json; box.append(ta); } ta.select(); msg.textContent='Copying was blocked. The text below is selected: press Ctrl or Cmd + C.'; }
+  };
+  row.append(btn, msg); box.append(row);
+  return box;
 }
 
 function renderRating(R){
@@ -816,7 +882,7 @@ function applyEstimates(e){
   setRO(4,'Length', Number.isFinite(dur)&&dur>0 ? fmtTime(dur) : '–', Number.isFinite(dur)&&dur>0 ? 'Estimated by Gemini' : 'Not known');
 }
 
-const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "rating": {"score": number, "verdict": string, "best": string, "worst": string, "suggestions": [string]}, "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "scores": null or {"energy": number, "danceability": number, "brightness": number, "bass_weight": number, "dynamics": number, "acoustic": number, "valence": number, "arousal": number}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
+const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "rating": {"score": number, "verdict": string, "best": string, "worst": string, "suggestions": [string]}, "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "scores": null or {"energy": number, "danceability": number, "brightness": number, "bass_weight": number, "dynamics": number, "acoustic": number, "valence": number, "arousal": number}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}, "mastering": null or {"summary": string, "edits": [{"start": number, "end": number, "section": string, "target": "mix" or "vocals" or "drums" or "bass" or "other", "action": "level" or "eq" or "tame" or "bypass", "gain_db": number, "freq_hz": number, "shape": "bell" or "narrow" or "wide" or "low_shelf" or "high_shelf", "strength": "light" or "medium" or "strong", "reason": string}], "advice": [{"start": number, "end": number, "section": string, "text": string}]}}`;
 function buildPrompt(req, heard){
   let src;
   if (req.mode==='link'){
@@ -841,11 +907,12 @@ Rules:
 - identified_song: "Artist – Title" when the track is clearly a known recording; otherwise null.
 - summary: 2-4 plain sentences on the sound, feel and structure. Mention tempo and key naturally. Don't overclaim.
 - genres: 1-4 items, integer weights summing to 100.
-- rating: your own honest, playful opinion of the track as a listener. score: 0-10 with one decimal (use the whole range; most tracks land 5-8). verdict: one punchy, good-natured sentence. best: the strongest element in a short phrase. worst: what could be better in a short phrase. suggestions: 2-4 specific, actionable ideas to improve the track (arrangement, production, mix, performance, structure or lyrics), each one sentence naming what to change and where or how, tied to what you heard or measured (e.g. \"Drop the pads for the first 8 bars of the second chorus so the return hits harder.\"). Avoid generic advice like \"make it more dynamic\". For a well-known released recording, frame them as ideas for a remix or cover. Judge the music itself, never the listener.
+- rating: your own honest, playful opinion of the track as a listener. score: 0-10 with one decimal (use the whole range; most tracks land 5-8). verdict: one punchy, good-natured sentence. best: the strongest element in a short phrase. worst: what could be better in a short phrase. suggestions: 2-4 specific, actionable ideas to improve the track (arrangement, production, mix, performance, structure or lyrics), each one sentence naming what to change and where or how, tied to what you heard or measured (e.g. \"Drop the pads for the first 8 bars of the second chorus so the return hits harder.\"). Avoid generic advice like \"make it more dynamic\". When you heard an uploaded file, start each suggestion with its time range and section, e.g. \"1:02–1:10 (Chorus 2): ...\". For a well-known released recording, frame them as ideas for a remix or cover. Judge the music itself, never the listener.
 - moods: 3-6 short words or phrases. instruments: up to 6 instruments or sound sources you hear or that are likely. use_cases: up to 3 listening contexts.
 - vocals: one short phrase describing the vocals (e.g. "breathy female lead with stacked harmonies"), or null for instrumentals.
 - estimates: your best estimates; null where unknown.
 - scores: integers 0-100 for how the track sounds: energy, danceability, brightness (dark to bright timbre), bass_weight, dynamics (compressed to very dynamic), acoustic (electronic to acoustic), valence (sad to happy) and arousal (calm to intense). Required when no browser measurements were given; otherwise null.
+- mastering: ${req.heardS ? `edits for the GP Mastering app, which can apply only these, each to a time range of the full mix before its mastering chain (which then sets overall loudness, compression and limiting): "level" (gain_db -12 to +12); "eq" (gain_db -12 to +12 at freq_hz 20-20000, shape bell about one octave wide, narrow, wide, low_shelf or high_shelf); "tame" (extra compression, strength light, medium or strong); "bypass" (no tone processing in the range). start and end are seconds from the start of the attached audio as plain numbers (e.g. 62.4), each range at least 0.5 s and within 0 to ${req.heardS}. Snap to bar lines or section starts and name the section. target: the instrument the edit is really meant for (mix, vocals, drums, bass or other = pads, synths, guitars, keys); the app applies edits to the full mix, so prefer edits that still work on the whole mix. Keep level and EQ moves within plus or minus 4 dB unless the problem is severe. No whole-song loudness, limiting or whole-song EQ. At most 12 edits, most important first. Put what the app cannot do (adding sounds or effects, risers, muting one instrument, arrangement or performance changes) in advice, with start and end when it applies to a range. Cover the same ideas as rating.suggestions where they can be applied. reason: one short sentence; summary: one or two sentences.` : 'null (only produced when you heard an uploaded audio file).'}
 - lyrics: if lyrics were pasted, analyze them. Otherwise, if you heard sung words, analyze what you heard. Give the meaning in 2-3 sentences, 2-5 themes, tone, language and whether it is explicit. Never quote more than a few words of lyrics. null for instrumentals or when you have nothing to go on.`;
 }
 function parseJSONLoose(t){
@@ -886,7 +953,7 @@ async function requestReview(){
     if (req.youtubeId){ parts.push({ file_data:{ file_uri:'https://www.youtube.com/watch?v='+req.youtubeId } }); heard=true; }
   } else if (state.feats){
     req = { mode:'file', name: state.isDemo ? 'Example loop synthesized in the browser (pads, saw bass, kick, snare, hi-hats, square-wave lead)' : state.name, features: featsForPrompt(), lyrics };
-    if ($('listenChk').checked){ parts.push({ inline_data:{ mime_type:'audio/wav', data:audioForGemini() } }); heard=true; }
+    if ($('listenChk').checked){ parts.push({ inline_data:{ mime_type:'audio/wav', data:audioForGemini() } }); heard=true; req.heardS=+Math.min(state.feats.dur,360).toFixed(1); }
   } else return;
   parts.push({ text: buildPrompt(req, heard) });
   btn.disabled=true; $('linkBtn').disabled=true; stop.hidden=false; aiCtl=new AbortController();
@@ -959,11 +1026,14 @@ $('linkForm').addEventListener('submit', e => {
 /* ---------- Boot ---------- */
 (async () => {
   try {
+    demoBusy=true; const gen=loadGen;
     setStatus('Synthesizing example loop…');
     const buf = await makeDemo();
+    if (gen!==loadGen) return;
     audio.src = URL.createObjectURL(wavBlob(buf));
-    await run(buf, 'Example loop', '31 s synthesized in your browser · A minor chords, kick, snare, hats', true);
-  } catch(e){ console.error(e); $('trackName').textContent='No track loaded'; setStatus('Choose an audio file to begin.'); }
+    await run(buf, 'Example loop', '31 s synthesized in your browser · A minor chords, kick, snare, hats', true, gen);
+  } catch(e){ console.error(e); if (!loadGen){ $('trackName').textContent='No track loaded'; setStatus('Choose an audio file to begin.'); } }
+  finally { demoBusy=false; }
 })();
 (() => {
   const k=store.get(KEY_STORE), m=store.get(MODEL_STORE);

@@ -4,6 +4,7 @@ A music analyzer that runs entirely in the browser.
 
 - **Measured locally, no AI needed:** tempo (BPM), key with Camelot code, loudness, loudness range, energy sections, pitch profile, character scores and a mood estimate.
 - **AI review with Gemini:** a just-for-fun 0–10 rating with suggestions for improving the track, genre weights, moods, instruments, vocals, listening contexts and lyric themes. Gemini can listen to an uploaded file or to a YouTube / YouTube Music link.
+- **Edits for GP Mastering:** when Gemini listened to an uploaded file, the review also lists level, EQ, taming and no-processing edits for exact time ranges. **Copy for GP Mastering** copies them in the format [GP Mastering](https://github.com/gp-songtools/gp-master) imports: load the same file there, open **AI suggestions › Paste suggestions from another tool**, paste and press Import. Times are seconds from the start of the file, so they only line up with the same file.
 
 ## Your own Gemini key
 
