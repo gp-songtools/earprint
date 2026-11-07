@@ -40,6 +40,9 @@
 - Use `$()` helper for `getElementById`
 - Colors via CSS custom properties; read in JS with `tok('--name')`
 - Update README "What gets sent to Gemini" table when changing anything sent to Google
+- `mastering` field (`SHAPE`, `gpmClean()`, `renderMastering()`) must match GP Mastering's import format (`AISCHEMA`/`aiParse` in gp-songtools/gp-master `index.html`); change both together
+- `mastering` only for uploaded files Gemini heard (`req.heardS`); times are seconds from file start
+- `loadGen`: newest load wins; check it after every `await` in a load path
 
 ## Deploy
 - GitHub Pages serves repo root; pushing to the Pages branch deploys
