@@ -128,20 +128,6 @@ textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px
 .genre .meter{grid-column:auto}
 .genre .meter>i{background:var(--accent)}
 .kv{display:flex;flex-direction:column;gap:6px}
-/* Genre probabilities */
-.gchart{display:flex;flex-direction:column;gap:2px;max-width:860px}
-.grow{display:grid;grid-template-columns:minmax(7rem,14rem) minmax(0,1fr) 3.2rem;gap:4px 12px;align-items:center;padding:5px 0}
-.grow .gn{font-size:14px;font-weight:500;min-width:0;overflow-wrap:anywhere}
-.grow .gr{display:block;font-size:12px;color:var(--muted);font-weight:400;line-height:1.35}
-.grow .gt{height:14px;position:relative;background:linear-gradient(to right, var(--line) 1px, transparent 1px) 0 0/25% 100%;border-left:1px solid var(--muted)}
-.grow .gb{position:absolute;inset:0 auto 0 0;background:var(--accent-2);border-radius:0 4px 4px 0;transition:width .5s ease;min-width:2px}
-.grow.top .gb{background:var(--accent)}
-.grow .gp{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:13px;text-align:right}
-.grow:hover .gt{background-color:var(--chip)}
-.gaxis{display:grid;grid-template-columns:minmax(7rem,14rem) minmax(0,1fr) 3.2rem;gap:12px}
-.gaxis .ticks{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:10.5px;color:var(--muted)}
-.gaxis .ticks span{width:0;display:flex;justify-content:center}
-@media (max-width:560px){.grow,.gaxis{grid-template-columns:minmax(0,1fr) 3.2rem}.grow .gn{grid-column:1/-1}.gaxis>span:first-child{display:none}}
 /* Rating */
 .rating{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--bg)}
 .rating .score{font-family:var(--f-display);font-size:44px;font-weight:700;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
@@ -257,14 +243,8 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
     </section>
   </div>
 
-  <section class="panel" id="genrePanel" hidden>
-    <div class="panel-head"><h2>Genre</h2><span class="label">Probability · from Gemini</span></div>
-    <div class="gchart" id="gchart" role="list" aria-label="Genre probabilities"></div>
-    <p class="note" id="genreNote"></p>
-  </section>
-
   <section class="panel">
-    <div class="panel-head"><h2>AI review</h2><span class="label">Rating · mood · instruments · lyrics</span></div>
+    <div class="panel-head"><h2>AI review</h2><span class="label">Rating · genre · mood · lyrics</span></div>
     <div class="ai-grid">
       <div class="ai-side">
         <div class="field"><label class="label" for="keyIn">Your Gemini API key</label>
@@ -285,7 +265,7 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
         <p class="note" id="aiNote">Paste your Gemini API key above to turn on AI reviews.</p>
       </div>
       <div class="ai-out" id="aiOut">
-        <div class="ai-empty" id="aiEmpty">Run an analysis, then press <b>Write AI review</b> for a genre chart, a just-for-fun rating, and a written profile with moods, likely instruments and listening contexts.</div>
+        <div class="ai-empty" id="aiEmpty">Run an analysis, then press <b>Write AI review</b> for a just-for-fun rating and a written profile with genre weights, moods, likely instruments and listening contexts.</div>
       </div>
     </div>
   </section>
@@ -628,7 +608,7 @@ async function run(buf, name, meta, isDemo){
   const feats = await analyze(mono, sr, p=>{ $('prog').style.width=(p*100).toFixed(1)+'%'; });
   $('progWrap').hidden=true;
   state = { source:'file', buf, mono, sr, feats, name, env:buildEnv(mono), isDemo, peakDb:20*Math.log10(peak+1e-12) };
-  $('genrePanel').hidden=true; $('timelinePanel').hidden=false; $('localGrid').hidden=false; $('localGrid').classList.remove('two'); $('chromaPanel').hidden=false; $('linkPanel').hidden=true;
+  $('timelinePanel').hidden=false; $('localGrid').hidden=false; $('localGrid').classList.remove('two'); $('chromaPanel').hidden=false; $('linkPanel').hidden=true;
   $('trackName').innerHTML=''; $('trackName').append(name); if (isDemo){ const b=document.createElement('span'); b.className='badge'; b.textContent='Example'; $('trackName').append(b); }
   $('trackMeta').textContent = meta + (buf.length>maxLen ? ' · first 12 minutes analyzed' : '');
   setStatus(isDemo ? 'This is a synthesized example loop. Choose your own file to analyze it.' : 'Analysis complete.');
@@ -701,8 +681,8 @@ const store = { get:k=>{ try { return localStorage.getItem(k); } catch(_) { retu
   set:(k,v)=>{ try { v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); } catch(_){} } };
 function aiPlaceholder(t){ $('aiOut').innerHTML=''; const d=document.createElement('div'); d.className='ai-empty'; d.textContent=t; $('aiOut').append(d); }
 function resetAI(){
-  aiCtl?.abort(); $('genrePanel').hidden=true;
-  aiPlaceholder(aiReady ? 'Press Write AI review for a genre probability chart, a just-for-fun rating, moods, likely instruments and listening contexts.'
+  aiCtl?.abort();
+  aiPlaceholder(aiReady ? 'Press Write AI review for a just-for-fun rating, genre weights, moods, likely instruments and listening contexts.'
     : 'Paste your Gemini API key on the left to turn on AI reviews. The measurements above work without it.');
 }
 function refreshKeyState(){
@@ -744,8 +724,19 @@ function renderAI(j, heard){
   out.append(src);
   if (j.identified_song){ const p=document.createElement('div'); p.className='ident'; p.textContent='Identified as: '+j.identified_song; out.append(p); }
   if (j.summary){ const p=document.createElement('p'); p.className='summary'; p.textContent=j.summary; out.append(p); }
-  renderGenres(j.genres, heard, j.identified_song);
   const r=renderRating(j.rating); if (r) out.append(r);
+  if (Array.isArray(j.genres) && j.genres.length){
+    const box=document.createElement('div'); box.className='kv';
+    box.innerHTML='<span class="label">Genre</span>';
+    for (const g of j.genres.slice(0,4)){
+      const w=clamp01(Number(g.weight)/100)*100, row=document.createElement('div'); row.className='genre';
+      const n=document.createElement('span'); n.textContent=String(g.name||'');
+      const m=document.createElement('div'); m.className='meter'; m.innerHTML=`<i style="width:${w.toFixed(0)}%"></i>`;
+      const v=document.createElement('span'); v.className='mono note'; v.textContent=Math.round(w)+'%';
+      row.append(n,m,v); box.append(row);
+    }
+    out.append(box);
+  }
   [['Mood', j.moods], ['Instruments', j.instruments], ['Good for', j.use_cases]].forEach(([t,a])=>{ const c=chipList(t,a); if (c) out.append(c); });
   if (j.vocals){ const p=document.createElement('p'); p.textContent=String(j.vocals); out.append(kvBlock('Vocals', p)); }
   if (j.lyrics && typeof j.lyrics==='object'){
@@ -757,36 +748,6 @@ function renderAI(j, heard){
   }
 }
 
-function genreSource(heard, ident){
-  if (heard) return 'Gemini listened to the audio and estimated how likely each genre is.';
-  if (state.source==='link') return "Gemini has not heard this track, so these come from its general knowledge of the song and how it is usually classified.";
-  return 'Gemini did not hear the audio, so this is a rough guess from the measurements and file name. Turn on listening for a better estimate.';
-}
-function renderGenres(list, heard, ident){
-  const box=$('gchart'); box.innerHTML='';
-  const rows=(Array.isArray(list)?list:[]).map(g=>({ name:String(g?.name||'').trim(), p:Number(g?.probability ?? g?.weight), why:String(g?.reason||'').trim() }))
-    .filter(g=>g.name && Number.isFinite(g.p) && g.p>0).slice(0,8);
-  if (!rows.length){ $('genrePanel').hidden=true; return; }
-  const sum=rows.reduce((a,g)=>a+g.p,0);
-  rows.forEach(g=>{ g.p = sum>0 ? g.p/sum*100 : 0; });
-  rows.sort((a,b)=>b.p-a.p);
-  rows.forEach((g,i)=>{
-    const row=document.createElement('div'); row.className='grow'+(i===0?' top':''); row.setAttribute('role','listitem');
-    const pct=Math.round(g.p); row.title=`${g.name}: ${pct}% likely`+(g.why?' · '+g.why:'');
-    const n=document.createElement('div'); n.className='gn'; n.textContent=g.name;
-    if (g.why){ const w=document.createElement('span'); w.className='gr'; w.textContent=g.why; n.append(w); }
-    const t=document.createElement('div'); t.className='gt'; t.setAttribute('aria-hidden','true');
-    const b=document.createElement('i'); b.className='gb'; b.style.width=g.p.toFixed(1)+'%'; t.append(b);
-    const v=document.createElement('div'); v.className='gp'; v.textContent=pct+'%';
-    row.append(n,t,v); box.append(row);
-  });
-  const ax=document.createElement('div'); ax.className='gaxis'; ax.setAttribute('aria-hidden','true');
-  const tk=document.createElement('div'); tk.className='ticks';
-  for (const x of [0,25,50,75,100]){ const sp=document.createElement('span'); sp.textContent=x+'%'; tk.append(sp); }
-  ax.append(document.createElement('span'), tk, document.createElement('span')); box.append(ax);
-  $('genreNote').textContent = (ident ? `Identified as ${ident}. ` : '') + genreSource(heard, ident) + ' The most likely genre is highlighted. Probabilities add up to 100%.';
-  $('genrePanel').hidden=false;
-}
 function renderRating(R){
   if (!R || typeof R!=='object') return null;
   const sc=Math.max(0,Math.min(10,Number(R.score)));
@@ -843,7 +804,7 @@ function applyEstimates(e){
   setRO(4,'Length', Number.isFinite(dur)&&dur>0 ? fmtTime(dur) : '–', Number.isFinite(dur)&&dur>0 ? 'Estimated by Gemini' : 'Not known');
 }
 
-const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "probability": number, "reason": string}], "rating": {"score": number, "verdict": string, "best": string, "worst": string}, "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "scores": null or {"energy": number, "danceability": number, "brightness": number, "bass_weight": number, "dynamics": number, "acoustic": number, "valence": number, "arousal": number}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
+const SHAPE = `{"identified_song": string or null, "summary": string, "genres": [{"name": string, "weight": number}], "rating": {"score": number, "verdict": string, "best": string, "worst": string}, "moods": [string], "instruments": [string], "use_cases": [string], "vocals": string or null, "estimates": {"tempo_bpm": number or null, "key": string or null, "mode": "major" or "minor" or null, "energy": "low" or "medium" or "high", "vocal_type": string or null, "duration_s": number or null}, "scores": null or {"energy": number, "danceability": number, "brightness": number, "bass_weight": number, "dynamics": number, "acoustic": number, "valence": number, "arousal": number}, "lyrics": null or {"summary": string, "themes": [string], "mood": string, "language": string, "explicit": boolean}}`;
 function buildPrompt(req, heard){
   let src;
   if (req.mode==='link'){
@@ -867,7 +828,7 @@ ${SHAPE}
 Rules:
 - identified_song: "Artist – Title" when the track is clearly a known recording; otherwise null.
 - summary: 2-4 plain sentences on the sound, feel and structure. Mention tempo and key naturally. Don't overclaim.
-- genres: 3-8 candidate genres or subgenres (specific names like "Synthwave" or "Neo-soul", not just "Electronic"), sorted most likely first. probability: integer percent chance that this genre is the best label for the track, summing to 100 across items. Spread the probability honestly: a clear-cut track can put 70+ on one genre, an ambiguous one should be flatter. reason: 3-8 words of evidence (e.g. "gated snare, analog synth arps"). For a known recording, reflect how it is commonly classified.
+- genres: 1-4 items, integer weights summing to 100.
 - rating: your own honest, playful opinion of the track as a listener. score: 0-10 with one decimal (use the whole range; most tracks land 5-8). verdict: one punchy, good-natured sentence. best: the strongest element in a short phrase. worst: what could be better in a short phrase. Judge the music itself, never the listener.
 - moods: 3-6 short words or phrases. instruments: up to 6 instruments or sound sources you hear or that are likely. use_cases: up to 3 listening contexts.
 - vocals: one short phrase describing the vocals (e.g. "breathy female lead with stacked harmonies"), or null for instrumentals.
@@ -916,7 +877,7 @@ async function requestReview(){
     if ($('listenChk').checked){ parts.push({ inline_data:{ mime_type:'audio/wav', data:audioForGemini() } }); heard=true; }
   } else return;
   parts.push({ text: buildPrompt(req, heard) });
-  btn.disabled=true; $('linkBtn').disabled=true; stop.hidden=false; aiCtl=new AbortController(); $('genrePanel').hidden=true;
+  btn.disabled=true; $('linkBtn').disabled=true; stop.hidden=false; aiCtl=new AbortController();
   aiPlaceholder(heard ? 'Gemini is listening to the track… this usually takes 15–60 seconds.' : 'Gemini is writing the review…');
   try {
     const review = await callGemini(parts, aiCtl.signal);
@@ -974,7 +935,7 @@ $('linkForm').addEventListener('submit', e => {
   audio.pause();
   const name = artist && title ? `${artist} – ${title}` : `${real.label} track ${real.id}`;
   state = { source:'link', link:real, name, feats:null, env:null, mood:null, linkReq:{ artist, title, platform:real?.platform||null, youtubeId: yt ? real.id : null } };
-  $('timelinePanel').hidden=true; $('localGrid').hidden=true; $('linkPanel').hidden=false; $('genrePanel').hidden=true;
+  $('timelinePanel').hidden=true; $('localGrid').hidden=true; $('linkPanel').hidden=false;
   $('trackName').textContent=name; { const b=document.createElement('span'); b.className='badge'; b.textContent=real?real.label:'By name'; $('trackName').append(b); }
   $('trackMeta').textContent = yt ? 'Gemini will listen to the YouTube audio' : 'Gemini will describe it from its knowledge of the song';
   setStatus(''); linkMsg('');
