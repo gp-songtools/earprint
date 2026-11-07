@@ -44,3 +44,7 @@
 ## Deploy
 - GitHub Pages serves repo root; pushing to the Pages branch deploys
 - Verify relative paths only; no absolute `/` asset paths
+
+## Git workflow
+- Commit and push directly to `main`; no feature branches or PRs (owner's standing instruction, until revoked)
+- Run the JS syntax check before every push
