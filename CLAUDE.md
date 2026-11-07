@@ -42,7 +42,7 @@
 - Update README "What gets sent to Gemini" table when changing anything sent to Google
 - `mastering` field (`SHAPE`, `gpmClean()`, `renderMastering()`) must match GP Mastering's import format (`AISCHEMA`/`aiParse` in gp-songtools/gp-master `index.html`); change both together
 - `mastering` only for uploaded files Gemini heard (`req.heardS`); times are seconds from file start
-- `mastering` actions: level, eq, tame, bypass, filter, reverb, delay, pan, riser, downlifter; `gpmClean()` clamps every effect parameter to GP Mastering's ranges
+- `mastering` actions: level, eq, tame, bypass, filter, reverb, delay, pan, riser, downlifter, pitch_shift; `gpmClean()` clamps every effect parameter to GP Mastering's ranges
 - `loadGen`: newest load wins; check it after every `await` in a load path
 
 ## Deploy
