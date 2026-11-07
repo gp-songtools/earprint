@@ -773,7 +773,7 @@ function gpmClean(M){
     const s=n(e?.start), t=n(e?.end), a=String(e?.action||'');
     if (s==null || t==null || t-s<0.25 || !GPM_ACT[a]) return null;
     const o={ start:+s.toFixed(2), end:+t.toFixed(2), section:String(e.section||''), target:['vocals','drums','bass','other'].includes(e.target)?e.target:'mix', action:a, reason:String(e.reason||'') };
-    if (a==='level'||a==='eq'){ const g=n(e.gain_db); if (!g) return null; o.gain_db=Math.max(-12,Math.min(12,g)); }
+    if (a==='level'||a==='eq'){ const g=n(e.gain_db); if (!g) return null; o.gain_db=Math.max(a==='level'&&o.target!=='mix'?-60:-12,Math.min(12,g)); }
     if (a==='eq'){ o.freq_hz=Math.max(20,Math.min(20000,Math.round(n(e.freq_hz)||1000))); o.shape=GPM_SHAPE[e.shape]?e.shape:'bell'; }
     if (a==='tame') o.strength=['light','medium','strong'].includes(e.strength)?e.strength:'medium';
     return o;
@@ -783,7 +783,7 @@ function gpmClean(M){
 }
 function gpmDesc(e){
   const g=v=>(v>0?'+':'')+v+' dB';
-  return e.action==='level' ? 'Level '+g(e.gain_db) : e.action==='eq' ? 'EQ '+g(e.gain_db)+' at '+(e.freq_hz>=1000?(e.freq_hz/1000)+' kHz':e.freq_hz+' Hz')+' ('+GPM_SHAPE[e.shape]+')'
+  return e.action==='level' ? (e.gain_db<=-60?'Mute':'Level '+g(e.gain_db)) : e.action==='eq' ? 'EQ '+g(e.gain_db)+' at '+(e.freq_hz>=1000?(e.freq_hz/1000)+' kHz':e.freq_hz+' Hz')+' ('+GPM_SHAPE[e.shape]+')'
     : e.action==='tame' ? 'Tame dynamics, '+e.strength : 'No tone processing';
 }
 function renderMastering(raw){
@@ -796,10 +796,11 @@ function renderMastering(raw){
     const li=document.createElement('li'), b=document.createElement('b');
     b.textContent=fmtTime(e.start)+'–'+fmtTime(e.end)+(e.section?' · '+e.section:'')+' · '+gpmDesc(e);
     li.append(b, document.createTextNode(e.reason?' — '+e.reason:''));
-    if (e.target!=='mix'){ const t=document.createElement('span'); t.className='note'; t.textContent=' (meant for the '+e.target+')'; li.append(t); }
+    if (e.target!=='mix'){ const t=document.createElement('span'); t.className='note'; t.textContent=e.action==='bypass' ? ' (meant for the '+e.target+'; applies to the whole mix)' : ' (on the '+e.target+' stem)'; li.append(t); }
     ol.append(li);
   }
   if (M.edits.length) box.append(ol);
+  if (M.edits.some(e=>e.target!=='mix'&&e.action!=='bypass')){ const w=document.createElement('p'); w.className='note'; w.textContent='Edits on one stem need the song separated into stems in GP Mastering first (Stem balance › Separate whole song). Until then they wait there.'; box.append(w); }
   if (M.advice.length){
     const a=document.createElement('p'); a.className='note';
     a.textContent='Also suggested, not applied by GP Mastering: '+M.advice.map(x=>(x.start!=null?fmtTime(x.start)+'–'+fmtTime(x.end)+' ':'')+x.text).join(' · ');
@@ -912,7 +913,7 @@ Rules:
 - vocals: one short phrase describing the vocals (e.g. "breathy female lead with stacked harmonies"), or null for instrumentals.
 - estimates: your best estimates; null where unknown.
 - scores: integers 0-100 for how the track sounds: energy, danceability, brightness (dark to bright timbre), bass_weight, dynamics (compressed to very dynamic), acoustic (electronic to acoustic), valence (sad to happy) and arousal (calm to intense). Required when no browser measurements were given; otherwise null.
-- mastering: ${req.heardS ? `edits for the GP Mastering app, which can apply only these, each to a time range of the full mix before its mastering chain (which then sets overall loudness, compression and limiting): "level" (gain_db -12 to +12); "eq" (gain_db -12 to +12 at freq_hz 20-20000, shape bell about one octave wide, narrow, wide, low_shelf or high_shelf); "tame" (extra compression, strength light, medium or strong); "bypass" (no tone processing in the range). start and end are seconds from the start of the attached audio as plain numbers (e.g. 62.4), each range at least 0.5 s and within 0 to ${req.heardS}. Snap to bar lines or section starts and name the section. target: the instrument the edit is really meant for (mix, vocals, drums, bass or other = pads, synths, guitars, keys); the app applies edits to the full mix, so prefer edits that still work on the whole mix. Keep level and EQ moves within plus or minus 4 dB unless the problem is severe. No whole-song loudness, limiting or whole-song EQ. At most 12 edits, most important first. Put what the app cannot do (adding sounds or effects, risers, muting one instrument, arrangement or performance changes) in advice, with start and end when it applies to a range. Cover the same ideas as rating.suggestions where they can be applied. reason: one short sentence; summary: one or two sentences.` : 'null (only produced when you heard an uploaded audio file).'}
+- mastering: ${req.heardS ? `edits for the GP Mastering app, which can apply only these, each to a time range of the full mix before its mastering chain (which then sets overall loudness, compression and limiting): "level" (gain_db -12 to +12); "eq" (gain_db -12 to +12 at freq_hz 20-20000, shape bell about one octave wide, narrow, wide, low_shelf or high_shelf); "tame" (extra compression, strength light, medium or strong); "bypass" (no tone processing in the range). start and end are seconds from the start of the attached audio as plain numbers (e.g. 62.4), each range at least 0.5 s and within 0 to ${req.heardS}. Snap to bar lines or section starts and name the section. target: mix for the whole mix, or vocals, drums, bass or other (pads, synths, guitars, keys) to apply a level, eq or tame edit to that instrument only (GP Mastering separates the song into these four stems; bypass always applies to the whole mix). Prefer a stem target when the problem belongs to one instrument, e.g. cut 1-2 kHz in other to clear the vocal. To mute one instrument for a range, use level on its stem with gain_db -60 (stem level -60 to +12; whole-mix level -12 to +12). Otherwise keep level and EQ moves within plus or minus 4 dB unless the problem is severe. No whole-song loudness, limiting or whole-song EQ. At most 12 edits, most important first. Put what the app cannot do (adding sounds or effects, risers, splitting a stem further such as keeping only the kick and hi-hat, arrangement or performance changes) in advice, with start and end when it applies to a range. Cover the same ideas as rating.suggestions where they can be applied. reason: one short sentence; summary: one or two sentences.` : 'null (only produced when you heard an uploaded audio file).'}
 - lyrics: if lyrics were pasted, analyze them. Otherwise, if you heard sung words, analyze what you heard. Give the meaning in 2-3 sentences, 2-5 themes, tone, language and whether it is explicit. Never quote more than a few words of lyrics. null for instrumentals or when you have nothing to go on.`;
 }
 function parseJSONLoose(t){
