@@ -2,6 +2,12 @@
 
 All notable changes to Earprint, newest first. Earprint has no version numbers, so entries are grouped by date.
 
+## 2026-11-08 — Arrangement edits for GP Mastering
+
+### Added
+
+- Edits for GP Mastering can now **repeat** or **cut** whole bars, matching GP Mastering v50's arrangement editing. Times stay in the original file; GP Mastering maps them onto the song's current arrangement when they are pasted in.
+
 ## 2026-11-07 — Edits for GP Mastering
 
 ### Added
