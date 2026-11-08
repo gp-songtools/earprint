@@ -3,7 +3,7 @@
 ## Directory map
 - `index.html` — entire app: HTML, CSS, one inline `<script>` (IIFE)
 - `README.md` — user docs: key handling, what gets sent to Gemini, model choice
-- `CHANGELOG.md` — user-facing changes by date, newest first; add an entry with every user-facing change
+- `CHANGELOG.md` — user-facing changes by date, newest first; add an entry with every user-facing change; `changelog.html` renders it in the browser; edit only the `.md`
 - `.nojekyll` — GitHub Pages: serve files as-is
 - `CLAUDE.md` — this file
 - No `package.json`, no build output, no tests dir
