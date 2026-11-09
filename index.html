@@ -167,6 +167,8 @@ textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px
 .adv[open]{display:flex;flex-direction:column;gap:6px}
 .ai-side a,.note a{color:var(--accent-2)}
 footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
+.foot-links{margin:8px 0 0}
+.foot-links a{color:inherit}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -279,6 +281,7 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
 
   <footer>
     Measurements happen in your browser. Audio is sent only when you ask for an AI review with listening turned on, and then it goes from your browser directly to Google's Gemini API under your own key. Tempo comes from autocorrelating the onset envelope, key from correlating the average chroma vector with Krumhansl–Kessler profiles, and level is unweighted RMS (not LUFS). Character scores and mood are heuristics built from those measurements, so treat them as estimates. Tempo can land on half or double time for some tracks.
+    <p class="foot-links"><a href="changelog.html">Changelog</a> · <a href="https://gp-songtools.github.io/toolsmenu/privacy.html">Privacy &amp; credits</a></p>
   </footer>
 </div>
 
@@ -1067,5 +1070,6 @@ $('linkForm').addEventListener('submit', e => {
 })();
 })();
 </script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "2c5b0c69f74b496998f02d0e1f651bd5"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>

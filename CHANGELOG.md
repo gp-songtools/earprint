@@ -2,6 +2,16 @@
 
 All notable changes to Earprint, newest first. Earprint has no version numbers, so entries are grouped by date.
 
+## 2026-11-09 — Visit statistics and credits
+
+### Added
+
+- **Changelog** and **Privacy & credits** links at the bottom of the page.
+
+### Changed
+
+- Earprint now counts visits with Cloudflare Web Analytics: anonymous totals only, with no cookies. It never sees your audio, files or key. The Privacy & credits page explains what it reports.
+
 ## 2026-11-08 — Arrangement edits for GP Mastering
 
 ### Added

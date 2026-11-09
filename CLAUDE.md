@@ -27,7 +27,8 @@
 
 ## Hard constraints
 - Keep it one file; no build step, no npm deps, no external JS libraries
-- Only external requests allowed: Google Fonts, `generativelanguage.googleapis.com`
+- Only external requests allowed: Google Fonts, `generativelanguage.googleapis.com`, Cloudflare Web Analytics (`static.cloudflareinsights.com` snippet before `</body>` on every page, same token on all GP Song Tools)
+- Privacy & credits live on the suite page `gp-songtools.github.io/toolsmenu/privacy.html` (repo `gp-songtools/toolsmenu`); update it and README Privacy/Credits when changing what is sent, stored or credited
 - No backend; Gemini key goes browser → Google only
 - Key in memory by default; `localStorage` only when "Remember the key" ticked
 - Storage keys: `earprint.geminiKey`, `earprint.geminiModel`; always via `store` wrapper (try/catch)

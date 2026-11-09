@@ -14,6 +14,14 @@ Each person pastes their own key into the page. Get a free one at https://aistud
 - It stays in memory and is forgotten when you close the tab, unless you tick **Remember the key in this browser**. That saves it in this browser's local storage on this device only. Untick the box to delete it.
 - Free-tier keys have rate limits, and Google's terms for the free tier allow it to use your prompts and audio to improve its products. Check https://ai.google.dev/gemini-api/terms and https://ai.google.dev/gemini-api/docs/pricing.
 
+## Privacy
+
+Earprint has no server and no account. Measurements stay in your browser; what goes to Google for an AI review is listed under [What gets sent to Gemini](#what-gets-sent-to-gemini). Pages load Cloudflare Web Analytics, shared by all GP Song Tools, for anonymous visit counts (no cookies; it never sees your audio, files or key). Details: [Privacy & credits](https://gp-songtools.github.io/toolsmenu/privacy.html).
+
+## Credits
+
+Key detection uses the Krumhansl–Kessler key profiles. Fonts: Bricolage Grotesque, IBM Plex Sans and IBM Plex Mono (SIL Open Font License) via Google Fonts.
+
 ## Run it
 
 It's a single file, `index.html`, with no build step and no dependencies. Either:
