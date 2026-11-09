@@ -10,6 +10,7 @@ All notable changes to Earprint, newest first. Earprint has no version numbers, 
 
 ### Changed
 
+- The browser tab now shows Earprint's own icon, 👂, the same one as on the GP Song Tools menu, on every page.
 - Earprint now counts visits with Cloudflare Web Analytics: anonymous totals only, with no cookies. It never sees your audio, files or key. The Privacy & credits page explains what it reports.
 
 ## 2026-11-08 — Arrangement edits for GP Mastering
