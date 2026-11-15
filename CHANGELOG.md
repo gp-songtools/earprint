@@ -2,6 +2,12 @@
 
 All notable changes to Earprint, newest first. Earprint has no version numbers, so entries are grouped by date.
 
+## 2026-11-15 — Copy for Idea Wizard
+
+### Added
+
+- **Copy for Idea Wizard** under every AI review: copies the track's tempo, key and mood with the review's genres, moods, instruments, vocals and lyric themes, ready to paste into [Idea Wizard](https://gp-songtools.github.io/ideawizard/) for three song ideas built on this sound. For a YouTube or Spotify link, tempo and key are marked as Gemini's estimates.
+
 ## 2026-11-09 — Visit statistics and credits
 
 ### Added

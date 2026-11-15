@@ -764,6 +764,47 @@ function renderAI(j, heard){
     out.append(box);
     const th=chipList('Lyric themes', L.themes); if (th) out.append(th);
   }
+  out.append(ideaBox(j));
+}
+
+/* Tags for Idea Wizard (gp-songtools/ideawizard): plain labelled lines it reads as context for
+   song ideas. Measured values in file mode, Gemini's estimates for links. */
+const IDEA_URL='https://gp-songtools.github.io/ideawizard/';
+function ideaText(j){
+  const L=['Earprint analysis'], add=(k,v)=>{ if (v!=null && String(v).trim()) L.push(k+': '+String(v).trim()); };
+  const list=a=>Array.isArray(a) ? a.filter(Boolean).slice(0,8).map(String).join(', ') : '';
+  if (state.source==='link'){
+    const e=j.estimates||{}, pc=pcFromName(e.key), minor=/min/i.test(e.mode||e.key||'');
+    add('Track', j.identified_song);
+    if (Number(e.tempo_bpm)>0) add('Tempo (estimated)', Math.round(Number(e.tempo_bpm))+' BPM');
+    if (pc>=0) add('Key (estimated)', (minor?MIN_NAMES[pc]:MAJ_NAMES[pc])+(minor?' minor':' major')+' ('+camelot(pc,minor)+')');
+    add('Energy (estimated)', e.energy);
+  } else if (state.feats){
+    const f=state.feats, k=f.keys[0];
+    add('Track', state.isDemo ? 'Example loop' : state.name);
+    add('Tempo', Math.round(f.bpm)+' BPM'); add('Key', keyName(k)+' ('+camelot(k.pc,k.minor)+')'); add('Measured mood', moodLabel(f.valence,f.arousal));
+  }
+  if (Array.isArray(j.genres)) add('Genres', j.genres.slice(0,4).map(g=>String(g?.name||'').trim()+(Number.isFinite(Number(g?.weight))?' '+Math.round(Number(g.weight))+'%':'')).filter(x=>x && !/^\d/.test(x)).join(', '));
+  add('Moods', list(j.moods)); add('Instruments', list(j.instruments)); add('Vocals', j.vocals); add('Good for', list(j.use_cases));
+  if (j.lyrics && typeof j.lyrics==='object'){ add('Lyric themes', list(j.lyrics.themes)); add('Lyrics', j.lyrics.summary); }
+  add('Summary', j.summary);
+  return L.join('\n');
+}
+function ideaBox(j){
+  const txt=ideaText(j), box=document.createElement('div'); box.className='kv gpm';
+  const l=document.createElement('span'); l.className='label'; l.textContent='Song ideas from this sound'; box.append(l);
+  const p=document.createElement('p'); p.className='note';
+  const a=document.createElement('a'); a.href=IDEA_URL; a.target='_blank'; a.rel='noopener'; a.textContent='Idea Wizard';
+  p.append('Copy these tags into ', a, ' to get three song ideas built on this track’s sound.'); box.append(p);
+  const row=document.createElement('div'); row.className='gpm-row';
+  const btn=document.createElement('button'); btn.type='button'; btn.textContent='Copy for Idea Wizard';
+  const msg=document.createElement('span'); msg.className='note'; msg.setAttribute('role','status');
+  btn.onclick=async()=>{
+    try { await navigator.clipboard.writeText(txt); msg.textContent='Copied. In Idea Wizard, paste into the Earprint box.'; }
+    catch(_){ let ta=box.querySelector('textarea'); if (!ta){ ta=document.createElement('textarea'); ta.readOnly=true; ta.rows=6; ta.value=txt; box.append(ta); } ta.select(); msg.textContent='Copying was blocked. The text below is selected: press Ctrl or Cmd + C.'; }
+  };
+  row.append(btn, msg); box.append(row);
+  return box;
 }
 
 /* Edits in GP Mastering's import format (gp-songtools/gp-master, AI suggestions >
