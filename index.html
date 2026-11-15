@@ -754,7 +754,7 @@ function renderAI(j, heard){
     }
     out.append(box);
   }
-  const m=heard && state.source!=='link' ? renderMastering(j.mastering) : null; if (m) out.append(m);
+  const m=heard && state.source!=='link' ? renderMastering(j.mastering) : null; out.append(m || gpmMissing(heard));
   [['Mood', j.moods], ['Instruments', j.instruments], ['Good for', j.use_cases]].forEach(([t,a])=>{ const c=chipList(t,a); if (c) out.append(c); });
   if (j.vocals){ const p=document.createElement('p'); p.textContent=String(j.vocals); out.append(kvBlock('Vocals', p)); }
   if (j.lyrics && typeof j.lyrics==='object'){
@@ -849,6 +849,18 @@ function gpmDesc(e){
     : e.action==='riser' ? (e.riser_type==='pitch'?'Pitch riser from the '+e.source+(e.freeze?' (held)':''):e.riser_type==='tape'?'Tape riser from the '+e.source:e.riser_type==='synth'?'Synth riser to '+e.key_note:'Noise riser')+', '+e.level+'%'
     : e.action==='downlifter' ? ({noise:'Noise downlifter',sub:'Sub drop',noise_and_sub:'Noise + sub downlifter'}[e.downlifter_type])+(e.impact?' with impact':'')+', '+e.level+'%'
     : e.action==='pan' ? 'Pan '+(e.pan?Math.abs(e.pan)+(e.pan<0?' L':' R'):'centre')+', width '+e.width+'%' : 'No tone processing';
+}
+/* Says why there is no "Edits for GP Mastering" box, so the missing button isn't a mystery. */
+function gpmMissing(heard){
+  const box=document.createElement('div'); box.className='kv gpm';
+  const l=document.createElement('span'); l.className='label'; l.textContent='Edits for GP Mastering'; box.append(l);
+  const p=document.createElement('p'); p.className='note';
+  p.textContent=state.source==='link'
+    ? 'None for a link. Edits for GP Mastering need an uploaded audio file, so Gemini can time them to your file. Use Choose audio file to load the track, then press Write AI review.'
+    : !heard
+    ? 'None this time, because Gemini didn’t listen. Tick “Let Gemini listen to the audio file” and press Write AI review again.'
+    : 'Gemini suggested no edits for GP Mastering this time. Press Write AI review again for another take.';
+  box.append(p); return box;
 }
 function renderMastering(raw){
   const M=gpmClean(raw); if (!M) return null;

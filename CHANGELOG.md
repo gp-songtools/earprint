@@ -8,6 +8,10 @@ All notable changes to Earprint, newest first. Earprint has no version numbers, 
 
 - **Copy for Idea Wizard** under every AI review: copies the track's tempo, key and mood with the review's genres, moods, instruments, vocals and lyric themes, ready to paste into [Idea Wizard](https://gp-songtools.github.io/ideawizard/) for three song ideas built on this sound. For a YouTube or Spotify link, tempo and key are marked as Gemini's estimates.
 
+### Changed
+
+- When an AI review has no **Edits for GP Mastering**, it now says why: the review was for a link, Gemini didn't listen to the file, or Gemini suggested no edits.
+
 ## 2026-11-09 — Visit statistics and credits
 
 ### Added
