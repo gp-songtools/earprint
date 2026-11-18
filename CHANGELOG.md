@@ -2,6 +2,14 @@
 
 All notable changes to Earprint, newest first. Earprint has no version numbers, so entries are grouped by date.
 
+## 2026-11-18 — Song spec
+
+### Added
+
+- **Song spec**: the song file shared by the GP Song Tools in this browser. A panel at the top shows which tool filled each part and when, and lets you clear a part, start a new song, open a `.songspec.md` file or download one to hand to Claude.
+- **Save to song spec** under an AI review saves the analysis (the same text as Copy for Idea Wizard), where GP Blueprint and Idea Wizard can use it. **Also set the song's BPM and key** (off by default) saves Earprint's tempo and key too, and says when that replaces GP Blueprint's.
+- When Lyricpad has saved lyrics to the song spec, **Use these lyrics** fills the lyrics box with them (section tags removed). The review then says it used them. All optional: with no song spec, Earprint works as before.
+
 ## 2026-11-15 — Copy for Idea Wizard
 
 ### Added

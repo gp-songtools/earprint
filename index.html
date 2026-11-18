@@ -170,6 +170,11 @@ textarea{width:100%;min-height:130px;resize:vertical;font:inherit;font-size:14px
 footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
 .foot-links{margin:8px 0 0}
 .foot-links a{color:inherit}
+.spec-panel{color:var(--ink)}
+.spec-lyr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.spec-lyr button{padding:4px 10px;font-size:13px}
+.spec-ok{color:var(--accent-2);font-weight:600}
+.spec-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:8px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -182,6 +187,7 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
       <p class="sub">Drop in a song to measure its tempo, key, loudness, energy and mood, then have Gemini listen and write a genre, mood and lyric profile.</p>
     </div>
   </header>
+  <div id="specPanel" class="spec-panel"></div>
 
   <label class="drop" id="drop" for="fileIn">
     <input type="file" id="fileIn" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.aac">
@@ -268,6 +274,7 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
         <label class="check"><input type="checkbox" id="listenChk" checked> Let Gemini listen to the audio file</label>
         <label for="lyrics" class="label">Lyrics (optional)</label>
         <textarea id="lyrics" placeholder="Paste the song's lyrics to get a theme and meaning analysis too."></textarea>
+        <div id="specLyr" class="spec-lyr note" hidden></div>
         <div class="ai-actions">
           <button class="primary" id="aiBtn" disabled>Write AI review</button>
           <button id="aiStop" hidden>Stop</button>
@@ -286,6 +293,7 @@ footer{color:var(--muted);font-size:12.5px;max-width:86ch;line-height:1.55}
   </footer>
 </div>
 
+<script src="songspec.js"></script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
@@ -804,7 +812,82 @@ function ideaBox(j){
     catch(_){ let ta=box.querySelector('textarea'); if (!ta){ ta=document.createElement('textarea'); ta.readOnly=true; ta.rows=6; ta.value=txt; box.append(ta); } ta.select(); msg.textContent='Copying was blocked. The text below is selected: press Ctrl or Cmd + C.'; }
   };
   row.append(btn, msg); box.append(row);
+  if (SS) box.append(specSaveRow(j, txt));
   return box;
+}
+
+/* ---------- GP Song Tools song spec ----------
+   Format: gp-songtools/toolsmenu songspec/SPEC.md; library: songspec.js (a byte-identical copy,
+   never edit it here). Earprint owns Analysis (the Copy for Idea Wizard text) and, only when
+   "Also set the song's BPM and key" is ticked, bpm/key/bpm_key_by. It only reads Lyricpad's
+   Lyrics, and everything works the same without a song spec. */
+const SS = window.SongSpec || null;
+let specUsed = []; // song spec sections the last AI review used
+const specDoc = () => SS.parse(SS.store.load() || SS.create());
+const plainKey = s => String(s).replace(/♭/g,'b').replace(/♯/g,'#');
+function specLyrics(){
+  const s = SS && SS.section(specDoc(), 'lyrics');
+  return s ? { text: SS.stripTags(s.body), by: s.by } : null;
+}
+function specLyricsInUse(){
+  const l = specLyrics(), v = $('lyrics').value;
+  return !!(l && v.trim() && SS.normalize(v) === SS.normalize(l.text));
+}
+function refreshSpecLyr(){
+  const box=$('specLyr'), l=specLyrics();
+  box.hidden = !l; if (!l) return;
+  const n = l.text.split('\n').filter(x=>x.trim()).length;
+  const t=document.createElement('span'); t.textContent=`Song spec: lyrics from ${SS.toolName(l.by)} (${n} lines, [tags] removed).`;
+  box.replaceChildren(t);
+  if (specLyricsInUse()){ const ok=document.createElement('span'); ok.className='spec-ok'; ok.textContent='In use'; box.append(ok); }
+  else { const b=document.createElement('button'); b.type='button'; b.textContent='Use these lyrics'; b.onclick=()=>{ $('lyrics').value=l.text; refreshSpecLyr(); }; box.append(b); }
+}
+/* BPM and key as Earprint would set them: measured for files, Gemini's estimates for links. */
+function specBpmKey(j){
+  if (state.source==='link'){
+    const e=j.estimates||{}, pc=pcFromName(e.key), minor=/min/i.test(e.mode||e.key||''), bpm=Math.round(Number(e.tempo_bpm));
+    return { bpm: bpm>=1 && bpm<=300 ? String(bpm) : '', key: pc>=0 ? plainKey(minor?MIN_NAMES[pc]:MAJ_NAMES[pc])+(minor?' minor':' major') : '' };
+  }
+  if (!state.feats) return { bpm:'', key:'' };
+  const bpm=Math.round(state.feats.bpm);
+  return { bpm: bpm>=1 && bpm<=300 ? String(bpm) : '', key: plainKey(keyName(state.feats.keys[0])) };
+}
+function specSaveRow(j, txt){
+  const wrap=document.createElement('div'), row=document.createElement('div'); row.className='spec-row';
+  const used=specUsed.slice();
+  if (used.length){ const u=document.createElement('p'); u.className='note'; u.textContent='This review used from the song spec: Lyrics ('+SS.toolName(SS.section(specDoc(),'lyrics')?.by)+').'; wrap.append(u); }
+  const btn=document.createElement('button'); btn.type='button'; btn.textContent='Save to song spec';
+  btn.title='Save this analysis to the song spec the GP Song Tools share';
+  const bk=specBpmKey(j), lab=document.createElement('label'); lab.className='check';
+  const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=false;
+  const d=specDoc(), by=SS.setting(d,'bpm_key_by'), was=[SS.setting(d,'bpm') && SS.setting(d,'bpm')+' BPM', SS.setting(d,'key')].filter(Boolean).join(', ');
+  const what=[bk.bpm && bk.bpm+' BPM', bk.key].filter(Boolean).join(', ');
+  lab.append(chk, document.createTextNode(`Also set the song's BPM and key${what ? ' ('+what+')' : ''}${by && by!=='earprint' && was ? `, replacing ${was} from ${SS.toolName(by)}` : ''}`));
+  if (!what){ chk.disabled=true; }
+  const msg=document.createElement('span'); msg.className='note'; msg.setAttribute('role','status');
+  btn.onclick=()=>{
+    const reason=SS.confirmReason(specDoc(),'analysis','earprint');
+    if (reason && !confirm(reason+'\n\nReplace it with this analysis?')) return;
+    const setBk = chk.checked && !!what;
+    const doc=SS.store.update(x=>{
+      SS.setSection(x,'analysis',txt,{ by:'earprint', from:used });
+      if (setBk){
+        if (bk.bpm) SS.setSetting(x,'bpm',bk.bpm,{by:'earprint'});
+        if (bk.key) SS.setSetting(x,'key',bk.key,{by:'earprint'});
+        SS.setSetting(x,'bpm_key_by','earprint',{by:'earprint'});
+      }
+    });
+    msg.textContent = SS.store.load()===SS.serialize(doc)
+      ? 'Saved the analysis'+(setBk?' and the BPM and key':'')+' to the song spec.'
+      : 'This browser blocked saving the song spec (private mode or storage full).';
+  };
+  row.append(btn, lab, msg); wrap.append(row);
+  return wrap;
+}
+if (SS){
+  SS.mountPanel($('specPanel'), { onChange: refreshSpecLyr });
+  $('lyrics').addEventListener('input', refreshSpecLyr);
+  refreshSpecLyr();
 }
 
 /* Edits in GP Mastering's import format (gp-songtools/gp-master, AI suggestions >
@@ -1024,6 +1107,7 @@ async function callGemini(parts, signal){
 async function requestReview(){
   if (!aiReady){ resetAI(); $('keyIn').focus(); return; }
   const btn=$('aiBtn'), stop=$('aiStop'), lyrics=$('lyrics').value.trim().slice(0,8000);
+  specUsed = specLyricsInUse() ? ['lyrics'] : [];
   let req, parts=[], heard=false;
   if (state.source==='link'){
     req = { mode:'link', ...state.linkReq, lyrics };

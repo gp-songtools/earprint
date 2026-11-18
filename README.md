@@ -6,6 +6,14 @@ A music analyzer that runs entirely in the browser.
 - **AI review with Gemini:** a just-for-fun 0–10 rating with suggestions for improving the track, genre weights, moods, instruments, vocals, listening contexts and lyric themes. Gemini can listen to an uploaded file or to a YouTube / YouTube Music link.
 - **Edits for GP Mastering:** when Gemini listened to an uploaded file, the review also lists level, EQ, taming, no-processing and effect edits (filter sweep, reverb, delay, pan / width) pitch shifts, added sounds (noise, synth, tape or pitch risers, downlifters) and arrangement changes (repeat or cut bars) for exact time ranges. **Copy for GP Mastering** copies them in the format [GP Mastering](https://github.com/gp-songtools/gp-master) imports: load the same file there, open **AI suggestions › Paste suggestions from another tool**, paste and press Import. Times are seconds from the start of the file, so they only line up with the same file. Edits aimed at one instrument (vocals, drums, bass or other) apply to that stem only, and need the song separated into stems in GP Mastering first (Stem balance › Separate whole song).
 
+## Song spec
+
+Earprint reads and writes the GP Song Tools [song spec](https://github.com/gp-songtools/toolsmenu/blob/main/songspec/SPEC.md), one file per song that every tool fills in its own part of, shared in this browser.
+
+- **Writes** (Save to song spec, under an AI review): Analysis (the Copy for Idea Wizard text), and the song's BPM and key only when **Also set the song's BPM and key** is ticked (off by default).
+- **Reads, optional:** Lyricpad's lyrics (**Use these lyrics**, section tags removed). Without a song spec, nothing changes.
+- `songspec.js` is a copy of the toolsmenu library (never edit it here); the rest is in `index.html`. Browser test: `node tests/songspec.ui.mjs` (needs Playwright; Gemini is mocked).
+
 ## Your own Gemini key
 
 Each person pastes their own key into the page. Get a free one at https://aistudio.google.com/apikey.
@@ -16,7 +24,7 @@ Each person pastes their own key into the page. Get a free one at https://aistud
 
 ## Privacy
 
-Earprint has no server and no account. Measurements stay in your browser; what goes to Google for an AI review is listed under [What gets sent to Gemini](#what-gets-sent-to-gemini). Pages load Cloudflare Web Analytics, shared by all GP Song Tools, for anonymous visit counts (no cookies; it never sees your audio, files or key). Details: [Privacy & credits](https://gp-songtools.github.io/toolsmenu/privacy.html).
+Earprint has no server and no account. Measurements stay in your browser; what goes to Google for an AI review is listed under [What gets sent to Gemini](#what-gets-sent-to-gemini). Pages load Cloudflare Web Analytics, shared by all GP Song Tools, for anonymous visit counts (no cookies; it never sees your audio, files or key). Details: [Privacy & credits](https://gp-songtools.github.io/toolsmenu/privacy.html). Save to song spec keeps the analysis (and, if ticked, BPM and key) in the song spec shared by the GP Song Tools in this browser; it is never sent anywhere by itself.
 
 ## Credits
 
