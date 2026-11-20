@@ -34,6 +34,10 @@ img{max-width:100%}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+::selection{background:color-mix(in srgb, var(--accent-2) 30%, transparent);color:var(--ink)}
+html{scrollbar-color:var(--line) var(--bg);accent-color:var(--cta)}
+input,textarea{caret-color:var(--accent-2)}
+a{text-underline-offset:3px}
 .wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px;
   padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
   display:flex;flex-direction:column;gap:20px}
@@ -158,7 +162,7 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:.85}
 .ai-empty{color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:10px;padding:18px}
 .ai-example{font-family:var(--f-body);font-size:14px;line-height:1.5;color:var(--ink)}
 .ai-example .badge{margin-left:0;margin-right:8px}
-.ai-out.is-example{border-left:3px solid var(--accent-2);padding-left:16px}
+
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{background:var(--raised);border-radius:6px;padding:3px 10px;font-size:14px}
 a.chip{color:var(--accent-2);text-decoration:none}
@@ -202,8 +206,8 @@ a.chip{color:var(--accent-2);text-decoration:none}
 .check input{width:18px;height:18px;flex:none;margin:0;accent-color:var(--cta)}
 .adv summary{cursor:pointer;font-size:14px;color:var(--muted);min-height:44px;display:flex;align-items:center;gap:8px;list-style:none}
 .adv summary::-webkit-details-marker,.link-disclosure summary::-webkit-details-marker{display:none}
-.adv summary::before,.link-disclosure summary::before{content:"\25B8";display:inline-block;transition:transform .15s}
-.adv[open]>summary::before,.link-disclosure[open]>summary::before{transform:rotate(90deg)}
+.adv summary::before,.link-disclosure summary::before{content:"";flex:none;width:7px;height:7px;margin:0 10px 0 2px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.adv[open]>summary::before,.link-disclosure[open]>summary::before{transform:rotate(45deg)}
 #linkNote{max-width:70ch}
 .link-disclosure{display:block}
 .link-disclosure summary{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none;font-family:var(--f-display);font-size:17px;font-weight:600;line-height:1.3}
@@ -229,7 +233,7 @@ footer{color:var(--muted);font-size:14px;max-width:86ch;line-height:1.55}
   <header class="top">
     <div>
       <h1><svg class="brand-mark" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 17a11 11 0 0 1 22 0"/><path d="M9.5 18a6.5 6.5 0 0 1 13 0c0 4-3 4.5-3 8"/><path d="M13.5 18.5a2.5 2.5 0 0 1 5 0" stroke="var(--accent)"/><path d="M5 17c0 7 4 11 9 11"/></svg>Earprint</h1>
-      <p class="sub">Drop in a song to measure its tempo, key, loudness, energy and mood, then have Gemini listen and write a genre, mood and lyric profile.</p>
+      <p class="sub">Drop in a song to measure its tempo, key, loudness, energy and mood. Then have Gemini listen and rate it, with suggestions, genres and a lyric profile.</p>
     </div>
     <a class="top-link" href="changelog.html">Changelog</a>
   </header>
@@ -1100,7 +1104,7 @@ function renderRating(R){
   const card=document.createElement('div'); card.className='rating';
   const s=document.createElement('div'); s.className='score'; s.textContent=(Math.round(sc*10)/10).toString();
   const sm=document.createElement('small'); sm.textContent='/10'; s.append(sm);
-  card.setAttribute('role','img'); card.setAttribute('aria-label', `Rated ${Math.round(sc*10)/10} out of 10`);
+  s.setAttribute('role','img'); s.setAttribute('aria-label', `Rated ${Math.round(sc*10)/10} out of 10`);
   const body=document.createElement('div'); body.className='rbody';
   const segs=document.createElement('div'); segs.className='segs'; segs.setAttribute('aria-hidden','true');
   for (let i=1;i<=10;i++){ const x=document.createElement('i'); if (i<=Math.round(sc)) x.className='on'; segs.append(x); }
