@@ -204,8 +204,11 @@ a.chip{color:var(--accent-2);text-decoration:none}
 .link-form{display:flex;flex-direction:column;gap:12px}
 .link-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:12px;align-items:end}
 @media (max-width:759px){.link-row{grid-template-columns:minmax(0,1fr)}}
+.field input{height:46px}
+.link-row>button{height:46px}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
-#linkMsg{font-size:14px;color:var(--muted);min-height:1.4em}
+#linkMsg{font-size:14px;color:var(--muted)}
+#linkMsg:empty{margin-top:-12px}
 #linkMsg.err{color:var(--danger)}
 .link-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
 .link-body a{color:var(--accent-2);font-weight:500}
@@ -292,7 +295,7 @@ footer{color:var(--muted);font-size:14px;max-width:86ch;line-height:1.55}
   <summary>Analyze a YouTube Music or Spotify link instead</summary>
   <form class="link-form" id="linkForm" novalidate>
     <div class="field"><label class="label" for="linkIn">Track link (optional)</label>
-      <input id="linkIn" type="text" inputmode="url" autocomplete="off" placeholder="https://open.spotify.com/track/…  or  https://music.youtube.com/watch?v=…"></div>
+      <input id="linkIn" type="text" inputmode="url" autocomplete="off" placeholder="Paste a Spotify or YouTube link…"></div>
     <div class="link-row">
       <div class="field"><label class="label" for="artistIn">Artist</label><input id="artistIn" type="text" autocomplete="off" placeholder="Daft Punk"></div>
       <div class="field"><label class="label" for="titleIn">Title</label><input id="titleIn" type="text" autocomplete="off" placeholder="Get Lucky"></div>
@@ -668,7 +671,6 @@ function renderRadar(T){
   let out='';
   for (const f of [0.25,0.5,0.75,1]) out+=`<polygon points="${ring(f)}" fill="${f===1?'var(--raised)':'none'}" stroke="var(--line)" stroke-width="1"/>`;
   TRAIT_AXES.forEach((_,i)=>{ const [x,y]=pt(i,R); out+=`<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--line)"/>`; });
-  out+=`<text x="${cx+7}" y="${(cy-R*0.5-4).toFixed(1)}" font-size="17" fill="var(--muted)" font-family="${MONO}">50</text>`;
   const vals=TRAIT_AXES.map(([k])=>clamp01((+T[k]||0)/100));
   out+=`<polygon class="poly" points="${vals.map((v,i)=>pt(i,R*Math.max(v,0.02)).map(x=>x.toFixed(1)).join(',')).join(' ')}"/>`;
   vals.forEach((v,i)=>{ const [x,y]=pt(i,R*Math.max(v,0.02)); out+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.6" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"/>`; });

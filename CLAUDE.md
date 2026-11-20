@@ -4,6 +4,7 @@
 - `index.html` — entire app: HTML, CSS, one inline `<script>` (IIFE)
 - `README.md` — user docs: key handling, what gets sent to Gemini, model choice
 - `CHANGELOG.md` — user-facing changes by date, newest first; add an entry with every user-facing change; `changelog.html` renders it in the browser; edit only the `.md`
+- `design-system/earprint/` — `MASTER.md` (tokens, type, components; source of truth for every page) + `DESIGN-PLAN.md`
 - `.nojekyll` — GitHub Pages: serve files as-is
 - `CLAUDE.md` — this file
 - `songspec.js` — copy of gp-songtools/toolsmenu `songspec/songspec.js` (the GP Song Tools song spec library), loaded before the inline script; never edit it here
@@ -19,8 +20,9 @@
 - Song spec test: `node tests/songspec.ui.mjs` (serves the folder itself; mocks Gemini, fonts, analytics)
 
 ## Layout of index.html
-- Lines ~1–154: `<head>`, CSS tokens on `:root`, Google Fonts link
-- Lines ~155–265: markup (drop zone, link input, readouts, timeline, traits/radar, mood, chroma, AI panel)
+- Lines ~1–240: `<head>`, CSS tokens on `:root` (values from `design-system/earprint/MASTER.md`), Fira fonts link
+- Lines ~241–360: markup: header, `.bridge` (drop zone + readouts + timeline), `#linkDetails` (streaming form), `#localGrid` (radar, mood, chroma), AI panel
+- `EXAMPLE_REVIEW` / `showExampleReview()`: canned review for the demo loop; `renderAI(j, heard, {example:true})` never claims Gemini ran
 - `analyze()`: local DSP (FFT, BPM, Krumhansl key, RMS/LRA, sections, chroma)
 - `render()`, `renderRadar()`, `renderTraits()`, `renderMood()`: measured results UI
 - `buildPrompt()`, `callGemini()`, `requestReview()`, `renderAI()`: Gemini review flow
@@ -44,6 +46,7 @@
 - `innerHTML` only for app-generated numbers/SVG icons
 - Use `$()` helper for `getElementById`
 - Colors via CSS custom properties; read in JS with `tok('--name')`
+- Follow `design-system/earprint/MASTER.md`: sentence-case labels ≥14px, no text <13px (chart ticks ≥12px rendered), numbers in Fira Code tabular, `--cta` only for actions
 - Update README "What gets sent to Gemini" table when changing anything sent to Google
 - `mastering` field (`SHAPE`, `gpmClean()`, `renderMastering()`) must match GP Mastering's import format (`AISCHEMA`/`aiParse` in gp-songtools/gp-master `index.html`); change both together
 - `mastering` only for uploaded files Gemini heard (`req.heardS`); times are seconds from file start

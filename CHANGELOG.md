@@ -2,6 +2,22 @@
 
 All notable changes to Earprint, newest first. Earprint has no version numbers, so entries are grouped by date.
 
+## 2026-11-20 — New design
+
+### Changed
+
+- **A new look** on both pages, with dark and light themes that follow your system. Fira Sans for text and Fira Code for every number, so readouts line up and stay easy to read. No text is smaller than 13px.
+- The track, its five readouts and the waveform now sit together in one panel at the top. On a phone the readouts form a tidy two-column grid.
+- **Choose audio file** is now the main button. Analyzing a YouTube Music or Spotify link moved into **Analyze a YouTube Music or Spotify link instead**, which opens on click.
+- The mood chart's corners now use the same words as the mood label (Tense, Upbeat, Melancholic, Warm), and its sides read **sadder** and **happier**.
+- On a phone, the AI review now comes before the key and settings.
+
+### Added
+
+- An **example review** of the demo loop, so the AI review section shows what you get before you add a key. It says clearly that it was written in advance and nothing was sent to Gemini.
+- The waveform works from the keyboard: focus it, then use the arrow keys to move by 5 seconds, Home and End to jump, and Space to play or pause.
+- A **Skip to the analysis** link for keyboard users, and screen readers now hear when an AI review is ready.
+
 ## 2026-11-18 — Song spec
 
 ### Added
