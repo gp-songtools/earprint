@@ -7,45 +7,54 @@
 <title>Earprint — Changelog</title>
 <meta name="description" content="What changed in Earprint, newest first.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap">
 <style>
-:root{--bg:#EDEFF4;--card:#F9FAFC;--ink:#141A2C;--mut:#586179;--ln:#D2D7E3;--ac:#D83A72;--acf:#fff;--warn:#B3261E;
---fd:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;--fb:"IBM Plex Sans",system-ui,-apple-system,sans-serif;--fm:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
-color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1220;--card:#161B2C;--ink:#E7EAF3;--mut:#959DB4;--ln:#283049;--ac:#FF6B9C;--acf:#1A0710;--warn:#FF8A80;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0E1220;--card:#161B2C;--ink:#E7EAF3;--mut:#959DB4;--ln:#283049;--ac:#FF6B9C;--acf:#1A0710;--warn:#FF8A80;color-scheme:dark}
+:root{--bg:#F3F4F9;--surface:#FFFFFF;--raised:#EEF0F7;--line:#D9DCEA;--ink:#14142B;--muted:#4E5670;--cta:#15803D;--on-cta:#FFFFFF;--accent:#C92A63;--accent-2:#1D6A94;--low:#7F88AE;--danger:#B3261E;--ring:#1D6A94;
+--f-body:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--f-mono:"Fira Code",ui-monospace,"SF Mono",Menlo,monospace;
+color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F0F23;--surface:#1B1B30;--raised:#24243C;--line:#34345A;--ink:#F8FAFC;--muted:#A9B3C7;--cta:#22C55E;--on-cta:#0B1A10;--accent:#FF6B9C;--accent-2:#5BB4E0;--low:#6B6BA6;--danger:#FF8A80;--ring:#FFFFFF;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F0F23;--surface:#1B1B30;--raised:#24243C;--line:#34345A;--ink:#F8FAFC;--muted:#A9B3C7;--cta:#22C55E;--on-cta:#0B1A10;--accent:#FF6B9C;--accent-2:#5BB4E0;--low:#6B6BA6;--danger:#FF8A80;--ring:#FFFFFF;color-scheme:dark}
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--fb)}
-main{max-width:680px;margin:0 auto;padding:20px 16px 60px}
-h1{font:700 30px/1.1 var(--fd);margin:8px 0 6px;letter-spacing:-.02em}
-h2{font-family:var(--fd);margin:26px 0 10px;padding-top:14px;border-top:1px solid var(--ln)}
-a{color:var(--ac)}
-b,strong{font-weight:650}
-code{font-family:var(--fm);font-size:13.5px;background:var(--card);border:1px solid var(--ln);border-radius:4px;padding:1px 4px;overflow-wrap:anywhere}
-.sub{color:var(--mut);margin:0 0 20px;font-size:15px}
-.ver{display:flex;align-items:baseline;gap:4px 10px;flex-wrap:wrap}
-.ver .v{font-weight:700;font-size:20px;letter-spacing:-.01em}
-.ver time{color:var(--mut);font:500 14px var(--fb)}
-.ver .cur{font:700 12px var(--fb);background:var(--ac);color:var(--acf);border-radius:999px;padding:2px 9px}
-section>p{margin:0 0 10px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 var(--f-body);-webkit-text-size-adjust:100%}
+main{max-width:calc(760px + 2*max(16px,env(safe-area-inset-left),env(safe-area-inset-right)));margin:0 auto;padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(60px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.brand{display:flex;align-items:center;gap:10px;margin:0 0 24px}
+.brand svg{width:28px;height:28px;flex:0 0 auto;color:var(--ink)}
+.brand a{font:700 20px/1.2 var(--f-body);letter-spacing:-.01em;color:var(--ink);text-decoration:none;border-radius:4px}
+.brand a:hover{text-decoration:underline}
+h1{font:700 clamp(28px,4vw,40px)/1.1 var(--f-body);margin:0 0 8px;letter-spacing:-.02em}
+h2{font:600 20px/1.3 var(--f-body);margin:32px 0 12px;padding-top:20px;border-top:1px solid var(--line)}
+a{color:var(--accent-2);text-decoration:underline;text-underline-offset:2px;border-radius:2px}
+a:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+b,strong{font-weight:600}
+code{font:400 14px var(--f-mono);background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:1px 5px;overflow-wrap:anywhere}
+.sub{color:var(--muted);margin:0 0 20px;font-size:16px;max-width:70ch}
+.ver{display:flex;align-items:baseline;gap:4px 12px;flex-wrap:wrap}
+.ver .v{font:600 20px/1.3 var(--f-body)}
+.ver time{color:var(--muted);font:400 14px var(--f-mono)}
+.ver .cur{font:600 13px var(--f-body);background:var(--raised);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 8px}
+section>p{margin:0 0 10px;max-width:75ch}
 ul{list-style:none;padding:0;margin:8px 0 0}
-li{display:flex;gap:10px;align-items:flex-start;margin:0 0 9px}
-li>span:last-child{min-width:0}
+li{display:flex;gap:12px;align-items:flex-start;margin:0 0 10px}
+li>span:last-child{min-width:0;max-width:75ch}
 li ul{margin:6px 0 0}
 li li{display:list-item;list-style:disc;margin:0 0 4px 18px}
-.tag{flex:0 0 auto;min-width:72px;text-align:center;font:700 11.5px var(--fb);letter-spacing:.02em;text-transform:uppercase;border-radius:6px;padding:2px 6px;margin-top:3px;border:1px solid var(--ln)}
-.tag.new{background:var(--ac);color:var(--acf);border-color:var(--ac)}
-.tag.chg{background:var(--card);color:var(--ink)}
-.tag.fix{background:var(--card);color:var(--warn);border-color:var(--warn)}
-.msg{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:12px 14px}
+.tag{flex:0 0 auto;min-width:78px;text-align:center;font:600 13px/1.4 var(--f-body);border-radius:6px;padding:2px 8px;margin-top:2px;border:1px solid var(--line);background:var(--raised);color:var(--muted)}
+.tag.new{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.chg{color:var(--muted);border-color:var(--line)}
+.tag.fix{color:var(--danger);border-color:var(--danger)}
+.msg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
 @media (max-width:420px){li{flex-direction:column;gap:4px}.tag{min-width:0}}
 </style>
 </head>
 <body>
 <main>
+<header>
+<p class="brand"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 17a11 11 0 0 1 22 0"/><path d="M9 18a7 7 0 0 1 14 0c0 4-3 5-3 8"/><path d="M13.5 18.5a2.5 2.5 0 0 1 5 0c0 2-1.5 2.5-1.5 5" style="stroke:var(--accent)"/></svg><a href="./">Earprint</a></p>
 <h1>Changelog</h1>
 <p class="sub"><span id="intro">What changed in Earprint, newest first.</span> <a href="./">Back to the app</a></p>
+</header>
 <div id="log"><p class="msg">Loading…</p></div>
 </main>
 <script>
