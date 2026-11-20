@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👂</text></svg>">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F3F4F9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0F23" media="(prefers-color-scheme: dark)">
 <title>Earprint Track Analyzer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,6 +36,13 @@ img{max-width:100%}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+main{display:flex;flex-direction:column;gap:inherit;outline:none}
+.skip{position:absolute;left:12px;top:-60px;z-index:10;background:var(--surface);color:var(--ink);border:2px solid var(--ring);border-radius:10px;padding:10px 14px;font-weight:600}
+.skip:focus{top:12px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+button,.btn,summary,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+a:hover{text-decoration-thickness:2px}
+summary:hover{color:var(--ink)}
 ::selection{background:color-mix(in srgb, var(--accent-2) 30%, transparent);color:var(--ink)}
 html{scrollbar-color:var(--line) var(--bg);accent-color:var(--cta)}
 input,textarea{caret-color:var(--accent-2)}
@@ -133,7 +142,7 @@ button.primary:disabled:hover{border-color:var(--cta);background:var(--cta)}
 .meter>i{position:absolute;inset:0 auto 0 0;background:var(--accent-2);border-radius:4px;transition:width .4s ease}
 .traits-list{display:flex;flex-direction:column;gap:12px}
 #radar{width:100%;max-width:420px;align-self:center;display:block;overflow:visible}
-#radar .poly{fill:var(--accent);fill-opacity:.18;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;transition:all .4s ease}
+#radar .poly{fill:var(--accent);fill-opacity:.18;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;transition:fill-opacity .4s ease,stroke .4s ease}
 
 /* Mood */
 #moodSvg{width:100%;max-width:320px;aspect-ratio:1;align-self:center;display:block}
@@ -229,6 +238,7 @@ footer{color:var(--muted);font-size:14px;max-width:86ch;line-height:1.55}
 </head>
 <body>
 
+<a class="skip" href="#main">Skip to the analysis</a>
 <div class="wrap">
   <header class="top">
     <div>
@@ -237,6 +247,7 @@ footer{color:var(--muted);font-size:14px;max-width:86ch;line-height:1.55}
     </div>
     <a class="top-link" href="changelog.html">Changelog</a>
   </header>
+  <main id="main" tabindex="-1">
   <div id="specPanel" class="spec-panel"></div>
 
   <section class="panel bridge" aria-label="Track and measurements">
@@ -261,7 +272,7 @@ footer{color:var(--muted);font-size:14px;max-width:86ch;line-height:1.55}
 
     <div id="timelinePanel">
       <div class="tl-row">
-        <button id="playBtn" aria-label="Play"><svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2.5v11l9-5.5z"/></svg></button>
+        <button type="button" id="playBtn" aria-label="Play"><svg viewBox="0 0 16 16" id="playIcon" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg></button>
         <span class="mono" id="timeNow">0:00 / 0:00</span>
         <div class="legend"><span class="lead">Energy within this track:</span><span><i style="background:var(--low)"></i>Quiet</span><span><i style="background:var(--accent-2)"></i>Building</span><span><i style="background:var(--accent)"></i>Peak</span></div>
       </div>
@@ -327,17 +338,19 @@ footer{color:var(--muted);font-size:14px;max-width:86ch;line-height:1.55}
         <textarea id="lyrics" placeholder="Paste the song's lyrics to get a theme and meaning analysis too."></textarea>
         <div id="specLyr" class="spec-lyr note" hidden></div>
         <div class="ai-actions">
-          <button class="primary" id="aiBtn" disabled>Write AI review</button>
-          <button id="aiStop" hidden>Stop</button>
+          <button type="button" class="primary" id="aiBtn" disabled>Write AI review</button>
+          <button type="button" id="aiStop" hidden>Stop</button>
         </div>
         <p class="note" id="aiNote">Paste your Gemini API key above to turn on AI reviews.</p>
       </div>
+      <div class="sr-only" id="aiStatus" role="status" aria-live="polite"></div>
       <div class="ai-out" id="aiOut">
         <div class="ai-empty" id="aiEmpty">Run an analysis, then press <b>Write AI review</b> for a just-for-fun rating and a written profile with genre weights, moods, likely instruments and listening contexts.</div>
       </div>
     </div>
   </section>
 
+  </main>
   <footer>
     Measurements happen in your browser. Audio is sent only when you ask for an AI review with listening turned on, and then it goes from your browser directly to Google's Gemini API under your own key. Tempo comes from autocorrelating the onset envelope, key from correlating the average chroma vector with Krumhansl–Kessler profiles, and level is unweighted RMS (not LUFS). Character scores and mood are heuristics built from those measurements, so treat them as estimates. Tempo can land on half or double time for some tracks.
     <p class="foot-links"><a href="changelog.html">Changelog</a><a href="https://gp-songtools.github.io/toolsmenu/privacy.html">Privacy &amp; credits</a></p>
@@ -535,8 +548,9 @@ function buildEnv(mono){
   let mx=0; for (const v of env) if (v>mx) mx=v; if (mx>0) for (let i=0;i<B;i++) env[i]/=mx;
   return env;
 }
+let cW=0, cH=0;
 function draw(){
-  const dpr=window.devicePixelRatio||1, Wc=canvas.clientWidth, Hc=canvas.clientHeight;
+  const dpr=window.devicePixelRatio||1, Wc=cW, Hc=cH; if (!Wc || !Hc) return;
   if (canvas.width!==Math.round(Wc*dpr) || canvas.height!==Math.round(Hc*dpr)){ canvas.width=Math.round(Wc*dpr); canvas.height=Math.round(Hc*dpr); }
   cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,Wc,Hc);
   const env=state.env, f=state.feats; if (!env || !f) return;
@@ -558,7 +572,7 @@ function draw(){
   const tickEvery = [5,10,15,30,60,120].find(t=>t/dur*Wc>=56) || 120;
   for (let t=0;t<=dur;t+=tickEvery){ const x=t/dur*Wc; const lab=fmtTime(t); const tw=cx.measureText(lab).width; cx.fillText(lab, Math.min(Wc-tw, Math.max(0, x-(t?tw/2:0))), by+bandH+4); }
 }
-new ResizeObserver(draw).observe(canvas);
+new ResizeObserver(()=>{ cW=canvas.clientWidth; cH=canvas.clientHeight; draw(); }).observe(canvas);
 const redrawTheme = () => { draw(); renderMood(); };
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', redrawTheme);
 new MutationObserver(redrawTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
@@ -777,7 +791,7 @@ let aiReady=false, aiCtl=null;
 const store = { get:k=>{ try { return localStorage.getItem(k); } catch(_) { return null; } },
   set:(k,v)=>{ try { v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); } catch(_){} } };
 function setExampleMode(on){ $('aiOut').classList.toggle('is-example', !!on); $('aiTag').textContent = on ? 'Example' : 'Written by Gemini with your key'; }
-function aiPlaceholder(t){ setExampleMode(false); $('aiOut').innerHTML=''; const d=document.createElement('div'); d.className='ai-empty'; d.textContent=t; $('aiOut').append(d); }
+function aiPlaceholder(t){ $('aiStatus').textContent=t; setExampleMode(false); $('aiOut').innerHTML=''; const d=document.createElement('div'); d.className='ai-empty'; d.textContent=t; $('aiOut').append(d); }
 /* Example review of the demo loop. Shown only while the demo is the loaded track and no review is
    running; never sent anywhere, never saved to the song spec or localStorage. */
 const EXAMPLE_REVIEW = {
@@ -1239,7 +1253,7 @@ async function requestReview(){
   aiPlaceholder(heard ? 'Gemini is listening to the track… this usually takes 15–60 seconds.' : 'Gemini is writing the review…');
   try {
     const review = await callGemini(parts, aiCtl.signal);
-    renderAI(review, heard);
+    renderAI(review, heard); $('aiStatus').textContent='AI review ready.';
     if (state.source==='link'){ applyEstimates(review.estimates); renderLinkPanel(heard); applyScores(review.scores); }
   } catch(e){
     if (e?.name==='AbortError') aiPlaceholder('Stopped.');
