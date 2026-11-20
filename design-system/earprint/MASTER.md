@@ -38,7 +38,7 @@ All text pairs below are ≥ 4.5:1; chart marks are ≥ 3:1 against `--surface`.
 | `--accent` | signal: peak, tonic, rating, current position | `#C92A63` | `#FF6B9C` |
 | `--accent-2` | signal: building, in-scale, meters, links | `#1D6A94` | `#5BB4E0` |
 | `--low` | signal: quiet, out-of-scale | `#7F88AE` | `#6B6BA6` |
-| `--wave` | unplayed waveform | `#8E95B6` | `#56568A` |
+| `--wave` | unplayed waveform | `#7A82A6` | `#6E6EA8` |
 | `--danger` | errors (always with text) | `#B3261E` | `#FF8A80` |
 | `--ring` | focus ring | `#1D6A94` | `#FFFFFF` |
 

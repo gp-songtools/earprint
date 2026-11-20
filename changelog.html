@@ -37,13 +37,15 @@ code{font:400 14px var(--f-mono);background:var(--raised);border:1px solid var(-
 section>p{margin:0 0 10px;max-width:75ch}
 ul{list-style:none;padding:0;margin:8px 0 0}
 li{display:flex;gap:12px;align-items:flex-start;margin:0 0 10px}
+p,li{text-wrap:pretty}
 li>span:last-child{min-width:0;max-width:75ch}
 li ul{margin:6px 0 0}
 li li{display:list-item;list-style:disc;margin:0 0 4px 18px}
-.tag{flex:0 0 auto;min-width:78px;text-align:center;font:600 13px/1.4 var(--f-body);border-radius:6px;padding:2px 8px;margin-top:2px;border:1px solid var(--line);background:var(--raised);color:var(--muted)}
+.tag{flex:0 0 auto;min-width:78px;text-align:center;font:600 13px/1.4 var(--f-body);border-radius:6px;padding:2px 8px;margin-top:2px;border:1px solid var(--line);background:none;color:var(--muted)}
 .tag.new{color:var(--accent-2);border-color:var(--accent-2)}
 .tag.chg{color:var(--muted);border-color:var(--line)}
-.tag.fix{color:var(--danger);border-color:var(--danger)}
+.tag.fix{color:var(--accent);border-color:var(--accent)}
+.back{margin:32px 0 0}
 .msg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
 @media (max-width:420px){li{flex-direction:column;gap:4px}.tag{min-width:0}}
 </style>
@@ -56,6 +58,7 @@ li li{display:list-item;list-style:disc;margin:0 0 4px 18px}
 <p class="sub"><span id="intro">What changed in Earprint, newest first.</span> <a href="./">Back to the app</a></p>
 </header>
 <div id="log"><p class="msg">Loading…</p></div>
+<p class="back"><a href="./">Back to Earprint</a></p>
 </main>
 <script>
 // Renders CHANGELOG.md (the single source of truth) next to this page.
