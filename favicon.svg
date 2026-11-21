@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke-width="2.4" stroke-linecap="round">
+  <style>
+    g { stroke: #14142b; }
+    .accent { stroke: #c92a63; }
+    @media (prefers-color-scheme: dark) { g { stroke: #f8fafc; } .accent { stroke: #ff6b9c; } }
+  </style>
+  <g><path d="M5 17a11 11 0 0 1 22 0"/><path d="M9.5 18a6.5 6.5 0 0 1 13 0c0 4-3 4.5-3 8"/><path d="M13.5 18.5a2.5 2.5 0 0 1 5 0" class="accent"/><path d="M5 17c0 7 4 11 9 11"/></g>
+</svg>

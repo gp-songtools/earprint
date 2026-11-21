@@ -18,6 +18,10 @@ All notable changes to Earprint, newest first. Earprint has no version numbers, 
 - The waveform works from the keyboard: focus it, then use the arrow keys to move by 5 seconds, Home and End to jump, and Space to play or pause.
 - A **Skip to the analysis** link for keyboard users, and screen readers now hear when an AI review is ready.
 
+### Fixed
+
+- The browser tab uses the same Earprint mark as the app header.
+
 ## 2026-11-18 — Song spec
 
 ### Added
