@@ -2,6 +2,12 @@
 
 All notable changes to Earprint, newest first. Earprint has no version numbers, so entries are grouped by date.
 
+## 2026-11-23
+
+### Added
+
+- **Save to Drive** and **Open from Drive…** in the Song spec panel: keep the song spec in a GP Song Tools folder in your Google Drive and open it on another device.
+
 ## 2026-11-20 — New design
 
 ### Changed
