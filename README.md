@@ -12,7 +12,8 @@ Earprint reads and writes the GP Song Tools [song spec](https://github.com/gp-so
 
 - **Writes** (Save to song spec, under an AI review): Analysis (the Copy for Idea Wizard text), and the song's BPM and key only when **Also set the song's BPM and key** is ticked (off by default).
 - **Reads, optional:** Lyricpad's lyrics (**Use these lyrics**, section tags removed). Without a song spec, nothing changes.
-- `songspec.js` is a copy of the toolsmenu library (never edit it here); the rest is in `index.html`. Browser test: `node tests/songspec.ui.mjs` (needs Playwright; Gemini is mocked).
+- **Save to Drive** and **Open from Drive…** (optional) keep the song spec in a `GP Song Tools/<song title>` folder in your Google Drive, so you can open it on another device. See Privacy below.
+- `songspec.js` and `songdrive.js` are copies of the toolsmenu libraries (never edit them here); the rest is in `index.html`. Browser test: `node tests/songspec.ui.mjs` (needs Playwright; Gemini is mocked).
 
 ## Your own Gemini key
 
@@ -24,7 +25,7 @@ Each person pastes their own key into the page. Get a free one at https://aistud
 
 ## Privacy
 
-Earprint has no server and no account. Measurements stay in your browser; what goes to Google for an AI review is listed under [What gets sent to Gemini](#what-gets-sent-to-gemini). Pages load Cloudflare Web Analytics, shared by all GP Song Tools, for anonymous visit counts (no cookies; it never sees your audio, files or key). Details: [Privacy & credits](https://gp-songtools.github.io/toolsmenu/privacy.html). Save to song spec keeps the analysis (and, if ticked, BPM and key) in the song spec shared by the GP Song Tools in this browser; it is never sent anywhere by itself.
+Earprint has no server and no account. Measurements stay in your browser; what goes to Google for an AI review is listed under [What gets sent to Gemini](#what-gets-sent-to-gemini). Pages load Cloudflare Web Analytics, shared by all GP Song Tools, for anonymous visit counts (no cookies; it never sees your audio, files or key). Details: [Privacy & credits](https://gp-songtools.github.io/toolsmenu/privacy.html). Save to song spec keeps the analysis (and, if ticked, BPM and key) in the song spec shared by the GP Song Tools in this browser; it is never sent anywhere by itself. The Drive buttons are optional and do nothing until you click one: Google's sign-in script then loads from `accounts.google.com`, and the song spec text and the song's folder name go to Google Drive (`www.googleapis.com`) and nowhere else. Earprint asks only for the `drive.file` permission, so it can see only the files and folders GP Song Tools created, not the rest of your Drive. Your browser keeps the sign-in token (about an hour, shared by the GP Song Tools on this site) and a note of which Drive copy was last synced; **Sign out of Drive** removes both.
 
 ## Credits
 

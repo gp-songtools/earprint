@@ -8,6 +8,7 @@
 - `.nojekyll` — GitHub Pages: serve files as-is
 - `CLAUDE.md` — this file
 - `songspec.js` — copy of gp-songtools/toolsmenu `songspec/songspec.js` (the GP Song Tools song spec library), loaded before the inline script; never edit it here
+- `songdrive.js` — byte-identical copy of toolsmenu `songspec/songdrive.js` (Google Drive for the Song spec panel's Save to Drive / Open from Drive…), loaded before `songspec.js`; never edit it here
 - `tests/songspec.ui.mjs` — song spec browser test (Playwright, Gemini mocked): `node tests/songspec.ui.mjs`
 - No `package.json`, no build output
 
@@ -30,9 +31,9 @@
 - `makeDemo()`: synthetic demo track
 
 ## Hard constraints
-- Keep it one file; no build step, no npm deps, no external JS libraries. One exception (owner's decision, 2026-11-18): `songspec.js`, the shared song spec library
+- Keep it one file; no build step, no npm deps, no external JS libraries. One exception (owner's decision, 2026-11-18): `songspec.js`, the shared song spec library. A second exception (owner's decision, 2026-11-23): `songdrive.js`, the shared Google Drive helper; copy it from toolsmenu, never edit it here
 - Song spec (format: gp-songtools/toolsmenu `songspec/SPEC.md`): Earprint owns only Analysis (`ideaText()`) and, only when "Also set the song's BPM and key" is ticked (off by default), `bpm`/`key`/`bpm_key_by`; it only reads Lyrics (tags stripped) and must work unchanged without a song spec or the library (`SS` null). Update `songspec.js` only by copying it from toolsmenu (`node toolsmenu/songspec/check-copies.js`)
-- Only external requests allowed: Google Fonts, `generativelanguage.googleapis.com`, Cloudflare Web Analytics (`static.cloudflareinsights.com` snippet before `</body>` on every page, same token on all GP Song Tools)
+- Only external requests allowed: Google Fonts, `generativelanguage.googleapis.com`, Google sign-in (`accounts.google.com`, loaded only after a Save to Drive / Open from Drive click), the Google Drive API (`www.googleapis.com`, `drive.file` scope, only after sign-in), Cloudflare Web Analytics (`static.cloudflareinsights.com` snippet before `</body>` on every page, same token on all GP Song Tools)
 - Privacy & credits live on the suite page `gp-songtools.github.io/toolsmenu/privacy.html` (repo `gp-songtools/toolsmenu`); update it and README Privacy/Credits when changing what is sent, stored or credited
 - No backend; Gemini key goes browser → Google only
 - Key in memory by default; `localStorage` only when "Remember the key" ticked
